@@ -183,6 +183,26 @@
     text-decoration:underline; text-underline-offset:2px; padding:6px;
   }
 
+  /* Botão de iniciar rota no topo */
+  .start-route-top{ margin-bottom:16px; }
+  .btn-start-route{
+    width:100%; background:var(--good); color:#fff;
+    box-shadow:0 8px 18px -6px rgba(23,182,120,0.55);
+  }
+
+  /* Resumo */
+  .summary-row{ padding:12px 0; border-bottom:1px solid var(--line); }
+  .summary-row:last-child{ border-bottom:none; }
+  .summary-row-main{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .summary-label{ font-size:13px; font-weight:600; color:var(--ink); }
+  .summary-value{
+    font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border-radius:100px; min-width:30px; text-align:center;
+    padding:2px 10px;
+  }
+  .summary-row-warn .summary-value{ color:var(--bad); background:var(--bad-soft); }
+  .summary-sub{ font-size:11.5px; color:var(--muted); font-weight:500; margin-top:5px; line-height:1.5; }
+
   /* Route list */
   .route-section{ margin-top:24px; }
   .route-head{
@@ -364,6 +384,13 @@
     </div>
   </header>
 
+  <div class="start-route-top">
+    <button class="btn btn-start-route" id="startRouteBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
+      Iniciar Rota
+    </button>
+  </div>
+
   <div class="license-bar" id="licenseBar" style="display:none;">
     Validade da chave: <b id="licenseDate">-</b> <span id="licenseDays"></span>
   </div>
@@ -408,7 +435,7 @@
     <div class="route-head">
       <h2>Sua rota</h2>
       <div class="route-head-actions">
-        <button class="link-btn" id="startRouteBtn">Iniciar Rota</button>
+        <button class="link-btn" id="summaryBtn">Resumo</button>
         <button class="link-btn" id="shareBtn">Compartilhar</button>
         <button class="link-btn link-btn-danger" id="clearBtn">Limpar tudo</button>
       </div>
@@ -525,9 +552,21 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="summaryBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:var(--accent-soft); color:var(--accent);">📊 resumo da rota</div>
+    <div id="summaryContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="summaryClose" style="flex:1;">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script>
@@ -579,6 +618,11 @@
   const shareBtn = document.getElementById('shareBtn');
   const toast = document.getElementById('toast');
   const modeToggle = document.getElementById('modeToggle');
+
+  const summaryBtn = document.getElementById('summaryBtn');
+  const summaryBackdrop = document.getElementById('summaryBackdrop');
+  const summaryContent = document.getElementById('summaryContent');
+  const summaryClose = document.getElementById('summaryClose');
 
   const modalBackdrop = document.getElementById('modalBackdrop');
   const modalCode = document.getElementById('modalCode');
@@ -910,6 +954,34 @@
     }).catch(() => { usingNativeDetector = false; });
   }
 
+  // Fallback em JavaScript puro para ler código de barras em navegadores que
+  // não têm a API nativa BarcodeDetector (ex.: Safari/iOS, Firefox). Assim
+  // a leitura de código de barras funciona em praticamente qualquer navegador,
+  // sem depender de o app estar instalado no celular.
+  let zxingReader = null;
+  let zxingReady = false;
+  if (window.ZXing) {
+    try{
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.CODE_93,
+        ZXing.BarcodeFormat.CODABAR,
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.ITF,
+        ZXing.BarcodeFormat.RSS_14,
+        ZXing.BarcodeFormat.RSS_EXPANDED
+      ]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+      zxingReady = true;
+    }catch(e){ zxingReady = false; }
+  }
+
   function showToast(msg, kind, duration){
     toast.textContent = msg;
     toast.classList.remove('bad','good','warn');
@@ -926,8 +998,8 @@
       btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
     });
     lastRawSeen = null; // permite reler algo que tinha sido ignorado no outro modo
-    if (mode === 'barcode' && !usingNativeDetector){
-      showToast('Este navegador não suporta leitor nativo de código de barras', 'bad');
+    if (mode === 'barcode' && !usingNativeDetector && !zxingReady){
+      showToast('Este navegador não tem suporte a leitura de código de barras', 'bad');
     }
   }
 
@@ -1021,6 +1093,11 @@
               const results = await barcodeDetector.detect(bitmap);
               if (results && results.length > 0){ raw = results[0].rawValue; }
             }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
+          } else if (zxingReady && zxingReader){
+            try{
+              const result = zxingReader.decodeFromCanvas(canvas);
+              if (result){ raw = result.getText ? result.getText() : result.text; }
+            }catch(e){ /* nenhum código encontrado neste quadro — normal, tenta de novo */ }
           }
         }
 
@@ -1191,9 +1268,14 @@
     listBody.querySelectorAll('.del').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const entry = entries[idx];
+        if (!entry) return;
+        const rotulo = Number.isInteger(entry.parada) ? ('parada ' + entry.parada) : ('etiqueta branca ' + entry.parada);
+        if (!confirm('Remover o código ' + entry.codigo + ' (' + rotulo + ')?')) return;
         entries.splice(idx, 1);
         saveEntries();
         renderList();
+        showToast('Código removido', 'good');
       });
     });
   }
@@ -1213,6 +1295,77 @@
       return rotulo + ': ' + e.codigo;
     });
     return titulo + '\n\n' + linhas.join('\n');
+  }
+
+  // Monta os números das paradas (inteiras) que estão "faltando" no meio
+  // da sequência lida, entre a menor e a maior parada já registrada.
+  function computeSummary(){
+    const contagemPorParada = {};
+    const etiquetasBrancas = [];
+    entries.forEach(e => {
+      if (Number.isInteger(e.parada)){
+        contagemPorParada[e.parada] = (contagemPorParada[e.parada] || 0) + 1;
+      } else {
+        etiquetasBrancas.push(e.parada);
+      }
+    });
+    const paradasNums = Object.keys(contagemPorParada).map(Number);
+    const comMaisDeUm = paradasNums.filter(p => contagemPorParada[p] > 1).sort((a,b) => a - b);
+    const comApenasUm = paradasNums.filter(p => contagemPorParada[p] === 1).sort((a,b) => a - b);
+
+    let faltantes = [];
+    if (paradasNums.length > 0){
+      const min = Math.min(...paradasNums);
+      const max = Math.max(...paradasNums);
+      for (let i = min; i <= max; i++){
+        if (!contagemPorParada[i]) faltantes.push(i);
+      }
+    }
+
+    return {
+      totalCodigos: entries.length,
+      totalParadasNumeradas: paradasNums.length,
+      comMaisDeUm, comApenasUm,
+      etiquetasBrancas: etiquetasBrancas.sort((a,b) => a - b),
+      faltantes
+    };
+  }
+
+  function summaryRow(label, value, sub, warn){
+    return '<div class="summary-row' + (warn ? ' summary-row-warn' : '') + '">' +
+      '<div class="summary-row-main"><span class="summary-label">' + label + '</span><span class="summary-value">' + value + '</span></div>' +
+      (sub ? '<div class="summary-sub">' + escapeHtml(sub) + '</div>' : '') +
+      '</div>';
+  }
+
+  function buildSummaryHtml(){
+    const s = computeSummary();
+    let html = '';
+    html += summaryRow('Total de códigos lidos', s.totalCodigos);
+    html += summaryRow('Total de paradas numeradas', s.totalParadasNumeradas);
+    html += summaryRow('Paradas com mais de 1 código', s.comMaisDeUm.length,
+      s.comMaisDeUm.length ? ('paradas: ' + s.comMaisDeUm.join(', ')) : '');
+    html += summaryRow('Paradas com apenas 1 código', s.comApenasUm.length,
+      s.comApenasUm.length ? ('paradas: ' + s.comApenasUm.join(', ')) : '');
+    html += summaryRow('Etiquetas brancas', s.etiquetasBrancas.length,
+      s.etiquetasBrancas.length ? ('etiquetas: ' + s.etiquetasBrancas.join(', ')) : '');
+    html += summaryRow('Paradas faltantes', s.faltantes.length,
+      s.faltantes.length ? ('faltando: ' + s.faltantes.join(', ')) : 'nenhum buraco na sequência lida até agora',
+      s.faltantes.length > 0);
+    return html;
+  }
+
+  function openSummaryModal(){
+    if (entries.length === 0){
+      showToast('Nenhum código lido ainda', 'bad');
+      return;
+    }
+    summaryContent.innerHTML = buildSummaryHtml();
+    summaryBackdrop.classList.add('show');
+  }
+
+  function closeSummaryModal(){
+    summaryBackdrop.classList.remove('show');
   }
 
   async function shareList(){
@@ -1284,6 +1437,8 @@
   });
 
   shareBtn.addEventListener('click', shareList);
+  summaryBtn.addEventListener('click', openSummaryModal);
+  summaryClose.addEventListener('click', closeSummaryModal);
   modalCancel.addEventListener('click', () => closeModal());
   modalConfirm.addEventListener('click', confirmModal);
   paradaInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmModal(); });
