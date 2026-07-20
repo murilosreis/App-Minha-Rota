@@ -191,7 +191,7 @@
   .route-head h2{
     font-family:var(--font-display); font-size:14.5px; font-weight:700; margin:0;
   }
-  .route-head-actions{ display:flex; align-items:center; gap:14px; }
+  .route-head-actions{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
   .link-btn{
     background:none; color:var(--accent); font-size:12px; font-weight:700;
     padding:4px 2px; text-decoration:underline; text-underline-offset:2px;
@@ -279,6 +279,20 @@
   .modal .modal-actions .btn{ padding:15px; }
   .modal .field-row{ margin-bottom:14px; }
 
+  .access-payment{
+    margin-top:18px; padding-top:16px; border-top:1px dashed var(--line);
+    text-align:center;
+  }
+  .access-payment-title{
+    font-size:12px; color:var(--muted); font-weight:700; margin:0 0 10px;
+  }
+  .access-payment-actions{ display:flex; gap:8px; }
+  .btn-pix{ background:#00B4A0; color:#fff; }
+  .btn-whats{ background:#25D366; color:#fff; }
+  .access-payment-hint{
+    font-size:11px; color:var(--muted); font-weight:500; margin:12px 0 0; line-height:1.5;
+  }
+
   .toast{
     position:fixed; bottom:26px; left:50%; transform:translateX(-50%);
     background:var(--ink); color:#fff; font-size:12.5px; font-weight:700;
@@ -289,6 +303,16 @@
   .toast.show{ opacity:1; }
   .toast.bad{ background:var(--bad); }
   .toast.good{ background:var(--good); }
+  .toast.warn{ background:var(--amber); color:#3A2400; }
+
+  .license-bar{
+    background:var(--surface); border:1px solid var(--line); border-radius:100px;
+    padding:8px 14px; font-size:11.5px; font-weight:600; color:var(--muted);
+    text-align:center; margin-bottom:14px; box-shadow:var(--shadow);
+  }
+  .license-bar b{ color:var(--ink); font-weight:700; }
+  .license-bar.urgent{ background:var(--bad-soft); color:var(--bad); border-color:transparent; }
+  .license-bar.urgent b{ color:var(--bad); }
 
   /* Trava a tela em modo retrato de verdade: quando o celular fica na
      horizontal, giramos o conteúdo de volta, então o app continua
@@ -334,6 +358,10 @@
     </div>
   </header>
 
+  <div class="license-bar" id="licenseBar" style="display:none;">
+    Validade da chave: <b id="licenseDate">-</b> <span id="licenseDays"></span>
+  </div>
+
   <div class="cam-card">
     <div class="mode-toggle" id="modeToggle">
       <button class="mode-btn active" data-mode="barcode">Código de Barras</button>
@@ -374,6 +402,7 @@
     <div class="route-head">
       <h2>Sua rota</h2>
       <div class="route-head-actions">
+        <button class="link-btn" id="startRouteBtn">Iniciar Rota</button>
         <button class="link-btn" id="shareBtn">Compartilhar</button>
         <button class="link-btn link-btn-danger" id="clearBtn">Limpar tudo</button>
       </div>
@@ -424,6 +453,15 @@
       <div class="warn" id="accessWarn"></div>
       <div class="modal-actions">
         <button class="btn btn-primary" id="accessConfirm" style="flex:1;">Entrar</button>
+      </div>
+
+      <div class="access-payment">
+        <p class="access-payment-title">Ainda não tem uma chave?</p>
+        <div class="access-payment-actions">
+          <button class="btn btn-pix" id="pixBtn">💠 Pagar com Pix</button>
+          <button class="btn btn-whats" id="whatsBtn">💬 Falar no WhatsApp</button>
+        </div>
+        <p class="access-payment-hint">Ao realizar o pagamento, me envie o comprovante pelo WhatsApp com o seu Nome.</p>
       </div>
     </div>
   </div>
@@ -498,6 +536,9 @@
   const accessKeyInput = document.getElementById('accessKeyInput');
   const accessWarn = document.getElementById('accessWarn');
   const accessConfirm = document.getElementById('accessConfirm');
+  const licenseBar = document.getElementById('licenseBar');
+  const licenseDate = document.getElementById('licenseDate');
+  const licenseDays = document.getElementById('licenseDays');
 
   const welcomeBackdrop = document.getElementById('welcomeBackdrop');
   const welcomeRouteInput = document.getElementById('welcomeRouteInput');
@@ -639,6 +680,43 @@
     return Date.now() > limite.getTime();
   }
 
+  function diasRestantes(validadeStr){
+    const limite = new Date(validadeStr + 'T23:59:59');
+    if (isNaN(limite.getTime())) return null;
+    return Math.ceil((limite.getTime() - Date.now()) / 86400000);
+  }
+
+  function formatarDataBr(validadeStr){
+    const partes = (validadeStr || '').split('-');
+    if (partes.length !== 3) return validadeStr;
+    return partes[2] + '/' + partes[1] + '/' + partes[0];
+  }
+
+  function renderLicenseInfo(validadeStr){
+    const dias = diasRestantes(validadeStr);
+    if (dias === null) return;
+    licenseBar.style.display = 'block';
+    licenseDate.textContent = formatarDataBr(validadeStr);
+    licenseDays.textContent = dias > 0
+      ? '(' + dias + ' dia' + (dias === 1 ? '' : 's') + ' restante' + (dias === 1 ? '' : 's') + ')'
+      : '(vence hoje)';
+    licenseBar.classList.toggle('urgent', dias <= 5);
+  }
+
+  function avisarVencimentoSeNecessario(validadeStr){
+    const dias = diasRestantes(validadeStr);
+    if (dias === null || dias > 5) return;
+    const hojeStr = new Date().toDateString();
+    let ultimoAviso = null;
+    try{ ultimoAviso = localStorage.getItem('minhaRota.avisoLicencaData'); }catch(e){}
+    if (ultimoAviso === hojeStr) return;
+    try{ localStorage.setItem('minhaRota.avisoLicencaData', hojeStr); }catch(e){}
+    const msg = dias > 0
+      ? 'Atenção: faltam ' + dias + ' dia' + (dias === 1 ? '' : 's') + ' para vencer sua licença.'
+      : 'Atenção: sua licença vence hoje!';
+    showToast(msg, 'warn', 4500);
+  }
+
   async function fetchChave(chave){
     const doc = await db.collection('chaves').doc(chave).get();
     return doc.exists ? doc.data() : null;
@@ -686,6 +764,8 @@
         showAccessForm('esta chave já está vinculada a outro aparelho.');
         return;
       }
+      renderLicenseInfo(data.validade);
+      avisarVencimentoSeNecessario(data.validade);
       hideAccessGate();
       initAppAfterAccess();
     }catch(err){
@@ -739,6 +819,8 @@
       }
       saveAccessInfo({ chave: chave, deviceId: deviceId, nome: nome });
       accessConfirm.disabled = false;
+      renderLicenseInfo(data.validade);
+      avisarVencimentoSeNecessario(data.validade);
       hideAccessGate();
       initAppAfterAccess();
     }catch(err){
@@ -751,6 +833,37 @@
   accessKeyInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmAccess(); });
   accessNameInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmAccess(); });
 
+  const PIX_CODE = "00020126360014br.gov.bcb.pix0114+5573982354945520400005303986540519.905802BR5911Murilo Reis6009Sao Paulo62220518daqr47274832827522630475A0";
+  const WHATSAPP_URL = "https://wa.me/qr/MMILHO4ISS4KM1";
+
+  function copyToClipboard(text){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(() => { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  const pixBtn = document.getElementById('pixBtn');
+  const whatsBtn = document.getElementById('whatsBtn');
+  pixBtn.addEventListener('click', () => {
+    copyToClipboard(PIX_CODE);
+    showToast('Código Pix copiado! Cole no app do seu banco.', 'good', 3000);
+  });
+  whatsBtn.addEventListener('click', () => {
+    window.open(WHATSAPP_URL, '_blank');
+  });
+
   let barcodeDetector = null;
   let usingNativeDetector = false;
   if ('BarcodeDetector' in window) {
@@ -760,12 +873,12 @@
     }).catch(() => { usingNativeDetector = false; });
   }
 
-  function showToast(msg, kind){
+  function showToast(msg, kind, duration){
     toast.textContent = msg;
-    toast.classList.remove('bad','good');
+    toast.classList.remove('bad','good','warn');
     if (kind) toast.classList.add(kind);
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 1700);
+    setTimeout(() => toast.classList.remove('show'), duration || 1700);
   }
 
   function vibrate(pattern){ if (navigator.vibrate) navigator.vibrate(pattern || 80); }
@@ -1107,9 +1220,10 @@
     stop();
     await start();
   });
-  clearBtn.addEventListener('click', () => {
+  const startRouteBtn = document.getElementById('startRouteBtn');
+  startRouteBtn.addEventListener('click', () => {
     const hasEntries = entries.length > 0;
-    if (hasEntries && !confirm('Remover todas as paradas vinculadas e iniciar uma nova rota?')) return;
+    if (hasEntries && !confirm('Iniciar uma nova rota vai limpar a lista de paradas atual. Continuar?')) return;
     entries = [];
     saveEntries();
     renderList();
@@ -1117,6 +1231,14 @@
     saveRoute();
     renderRouteSubtitle();
     openWelcomeModal();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (entries.length === 0) return;
+    if (!confirm('Remover todas as paradas da lista atual?')) return;
+    entries = [];
+    saveEntries();
+    renderList();
   });
 
   shareBtn.addEventListener('click', shareList);
