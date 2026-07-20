@@ -375,7 +375,7 @@
     <div class="counter-group">
       <div class="counter-chip">
         <span class="dot" id="countNum">0</span>
-        <span class="lbl">códigos <b id="countWord">lidos</b></span>
+        <span class="lbl">IDs <b id="countWord">lidos</b></span>
       </div>
       <div class="counter-chip counter-chip-alt">
         <span class="dot dot-alt" id="stopCountNum">0</span>
@@ -427,7 +427,7 @@
       Câmera bloqueada ou indisponível. Verifique as permissões do navegador para este site e tente novamente.
     </div>
     <div class="manual-entry-row">
-      <button id="manualCodeBtn">Digitar código manualmente</button>
+      <button id="manualCodeBtn">Digitar ID manualmente</button>
     </div>
   </div>
 
@@ -443,7 +443,7 @@
     <div class="route-line" id="listBody">
       <div class="empty-state">
         <div class="icon">📍</div>
-        <p>Nenhuma parada ainda.<br>Escaneie um código para começar sua rota.</p>
+        <p>Nenhuma parada ainda.<br>Escaneie um ID para começar sua rota.</p>
       </div>
     </div>
   </div>
@@ -452,7 +452,7 @@
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
     <div class="handle"></div>
-    <div class="status-pill">✓ código válido</div>
+    <div class="status-pill">✓ ID válido</div>
     <div class="code-display" id="modalCode">—</div>
     <div class="field-row">
       <label for="paradaInput">Número da parada</label>
@@ -541,7 +541,7 @@
   <div class="modal">
     <div class="handle"></div>
     <div class="field-row">
-      <label for="manualCodeInput">Digite o código (11 dígitos)</label>
+      <label for="manualCodeInput">Digite o ID (11 dígitos)</label>
       <input type="text" inputmode="numeric" id="manualCodeInput" placeholder="ex: 12345678901" autocomplete="off">
     </div>
     <div class="warn" id="manualCodeWarn"></div>
@@ -1146,8 +1146,8 @@
       vibrate([40,60,40]);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
-      showScanAlert('bad', 'Código inválido', 'precisa ter ' + CODE_LENGTH + ' dígitos numéricos');
-      showToast('Código inválido — precisa ter ' + CODE_LENGTH + ' dígitos', 'bad');
+      showScanAlert('bad', 'ID inválido', 'precisa ter ' + CODE_LENGTH + ' dígitos numéricos');
+      showToast('ID inválido — precisa ter ' + CODE_LENGTH + ' dígitos', 'bad');
       return;
     }
 
@@ -1156,7 +1156,7 @@
       vibrate([60,50,60,50,60]);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
-      showScanAlert('warn', 'Código duplicado', 'já vinculado à parada ' + existing.parada);
+      showScanAlert('warn', 'ID duplicado', 'já vinculado à parada ' + existing.parada);
     } else {
       vibrate(90);
       viewfinder.classList.add('flash-ok');
@@ -1231,7 +1231,7 @@
       listBody.innerHTML = `
         <div class="empty-state">
           <div class="icon">📍</div>
-          <p>Nenhuma parada ainda.<br>Escaneie um código para começar sua rota.</p>
+          <p>Nenhuma parada ainda.<br>Escaneie um ID para começar sua rota.</p>
         </div>`;
       return;
     }
@@ -1271,11 +1271,11 @@
         const entry = entries[idx];
         if (!entry) return;
         const rotulo = Number.isInteger(entry.parada) ? ('parada ' + entry.parada) : ('etiqueta branca ' + entry.parada);
-        if (!confirm('Remover o código ' + entry.codigo + ' (' + rotulo + ')?')) return;
+        if (!confirm('Remover o ID ' + entry.codigo + ' (' + rotulo + ')?')) return;
         entries.splice(idx, 1);
         saveEntries();
         renderList();
-        showToast('Código removido', 'good');
+        showToast('ID removido', 'good');
       });
     });
   }
@@ -1288,7 +1288,7 @@
 
   function buildShareText(){
     if (entries.length === 0) return '';
-    const qtd = entries.length + ' código' + (entries.length === 1 ? '' : 's');
+    const qtd = entries.length + ' ID' + (entries.length === 1 ? '' : 's');
     const titulo = 'IDs da rota' + (currentRoute ? (' ' + currentRoute) : '') + ' - ' + qtd;
     const linhas = entries.map(e => {
       const rotulo = Number.isInteger(e.parada) ? ('Parada ' + e.parada) : ('Etiqueta branca ' + e.parada);
@@ -1310,8 +1310,19 @@
       }
     });
     const paradasNums = Object.keys(contagemPorParada).map(Number);
-    const comMaisDeUm = paradasNums.filter(p => contagemPorParada[p] > 1).sort((a,b) => a - b);
     const comApenasUm = paradasNums.filter(p => contagemPorParada[p] === 1).sort((a,b) => a - b);
+
+    // Agrupa as paradas com mais de 1 ID pela quantidade exata de IDs
+    // (2 IDs, 3 IDs, 4 IDs...), cada quantidade contabilizada separadamente.
+    const gruposPorQuantidade = {};
+    paradasNums.forEach(p => {
+      const qtd = contagemPorParada[p];
+      if (qtd > 1){
+        if (!gruposPorQuantidade[qtd]) gruposPorQuantidade[qtd] = [];
+        gruposPorQuantidade[qtd].push(p);
+      }
+    });
+    Object.keys(gruposPorQuantidade).forEach(qtd => gruposPorQuantidade[qtd].sort((a,b) => a - b));
 
     let faltantes = [];
     if (paradasNums.length > 0){
@@ -1322,11 +1333,15 @@
       }
     }
 
+    const etiquetasBrancasOrdenadas = etiquetasBrancas.sort((a,b) => a - b);
+
     return {
       totalCodigos: entries.length,
       totalParadasNumeradas: paradasNums.length,
-      comMaisDeUm, comApenasUm,
-      etiquetasBrancas: etiquetasBrancas.sort((a,b) => a - b),
+      // soma da etiqueta branca com o total de paradas numeradas
+      totalGeralParadas: paradasNums.length + etiquetasBrancasOrdenadas.length,
+      gruposPorQuantidade, comApenasUm,
+      etiquetasBrancas: etiquetasBrancasOrdenadas,
       faltantes
     };
   }
@@ -1341,11 +1356,19 @@
   function buildSummaryHtml(){
     const s = computeSummary();
     let html = '';
-    html += summaryRow('Total de códigos lidos', s.totalCodigos);
+    html += summaryRow('Total de IDs lidos', s.totalCodigos);
     html += summaryRow('Total de paradas numeradas', s.totalParadasNumeradas);
-    html += summaryRow('Paradas com mais de 1 código', s.comMaisDeUm.length,
-      s.comMaisDeUm.length ? ('paradas: ' + s.comMaisDeUm.join(', ')) : '');
-    html += summaryRow('Paradas com apenas 1 código', s.comApenasUm.length,
+    html += summaryRow('Total geral de paradas', s.totalGeralParadas,
+      'paradas numeradas + etiquetas brancas');
+
+    const qtdsOrdenadas = Object.keys(s.gruposPorQuantidade).map(Number).sort((a,b) => a - b);
+    qtdsOrdenadas.forEach(qtd => {
+      const paradas = s.gruposPorQuantidade[qtd];
+      html += summaryRow('Paradas com ' + qtd + ' IDs', paradas.length,
+        paradas.length ? ('paradas: ' + paradas.join(', ')) : '');
+    });
+
+    html += summaryRow('Paradas com apenas 1 ID', s.comApenasUm.length,
       s.comApenasUm.length ? ('paradas: ' + s.comApenasUm.join(', ')) : '');
     html += summaryRow('Etiquetas brancas', s.etiquetasBrancas.length,
       s.etiquetasBrancas.length ? ('etiquetas: ' + s.etiquetasBrancas.join(', ')) : '');
@@ -1357,7 +1380,7 @@
 
   function openSummaryModal(){
     if (entries.length === 0){
-      showToast('Nenhum código lido ainda', 'bad');
+      showToast('Nenhum ID lido ainda', 'bad');
       return;
     }
     summaryContent.innerHTML = buildSummaryHtml();
@@ -1370,7 +1393,7 @@
 
   async function shareList(){
     if (entries.length === 0){
-      showToast('Nenhum código lido ainda', 'bad');
+      showToast('Nenhum ID lido ainda', 'bad');
       return;
     }
     const texto = buildShareText();
@@ -1400,7 +1423,7 @@
   function confirmManualCode(){
     const val = manualCodeInput.value.trim();
     if (!CODE_REGEX.test(val)){
-      manualCodeWarn.textContent = 'o código precisa ter exatamente ' + CODE_LENGTH + ' dígitos numéricos';
+      manualCodeWarn.textContent = 'o ID precisa ter exatamente ' + CODE_LENGTH + ' dígitos numéricos';
       return;
     }
     closeManualCodeModal();
