@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Minha Rota</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#4F5DFF">
+<meta name="screen-orientation" content="portrait">
+<meta name="x5-orientation" content="portrait">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F4F6FB;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F9;
+    --ink: #171B2E;
+    --muted: #7A8199;
+    --line: #E4E7F1;
+    --accent: #4F5DFF;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E9EBFF;
+    --good: #17B678;
+    --good-soft: #E4F9F0;
+    --bad: #F0473E;
+    --bad-soft: #FDECEB;
+    --amber: #F5A524;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 1px 2px rgba(23,27,46,0.04), 0 8px 24px -8px rgba(23,27,46,0.12);
+    --font-display: "Sora", sans-serif;
+    --font-body: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:var(--font-body); min-height:100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app{
+    max-width:520px; margin:0 auto; min-height:100vh;
+    display:flex; flex-direction:column;
+    padding:18px 16px 40px;
+  }
+
+  /* Header */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:38px; height:38px; border-radius:11px;
+    background: linear-gradient(155deg, var(--accent), #7B85FF);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 14px -4px rgba(79,93,255,0.55);
+    flex-shrink:0;
+  }
+  .brand-mark svg{ width:20px; height:20px; }
+  .brand-text h1{
+    font-family:var(--font-display); font-size:16.5px; font-weight:700;
+    margin:0; letter-spacing:-0.01em; line-height:1.1;
+  }
+  .brand-text p{
+    margin:2px 0 0; font-size:11.5px; color:var(--muted); font-weight:500;
+  }
+
+  .counter-group{ display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .counter-chip{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:100px; padding:6px 12px 6px 6px;
+    display:flex; align-items:center; gap:8px; box-shadow:var(--shadow);
+  }
+  .counter-chip .dot{
+    width:24px; height:24px; border-radius:50%; background:var(--accent-soft);
+    color:var(--accent); font-family:var(--font-display); font-weight:700; font-size:11.5px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .counter-chip .lbl{ font-size:10.5px; color:var(--muted); font-weight:600; }
+  .counter-chip .lbl b{ color:var(--ink); font-weight:700; }
+  .counter-chip-alt .dot-alt{ background:var(--good-soft); color:var(--good); }
+
+  /* Camera card */
+  .cam-card{
+    background:var(--surface); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow); padding:10px; border:1px solid var(--line);
+  }
+
+  /* Seletor de modo (QR / Código de barras) */
+  .mode-toggle{
+    display:flex; background:var(--surface-2); border-radius:100px;
+    padding:4px; margin-bottom:10px;
+  }
+  .mode-btn{
+    flex:1; border:none; background:none; padding:10px 8px; border-radius:100px;
+    font-size:12px; font-weight:700; color:var(--muted); font-family:var(--font-body);
+    cursor:pointer; transition: background .15s, color .15s;
+  }
+  .mode-btn.active{
+    background:var(--accent); color:#fff; box-shadow:0 4px 10px -3px rgba(79,93,255,0.5);
+  }
+
+  .viewfinder{
+    position:relative; width:100%; aspect-ratio:1/1;
+    background:#0D0F1A; border-radius:14px; overflow:hidden;
+  }
+  video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .frame-overlay{ position:absolute; inset:0; pointer-events:none; }
+  .corner{
+    position:absolute; width:28px; height:28px;
+    border-color: var(--accent-ink); opacity:0.9;
+  }
+  .corner.tl{top:16px; left:16px; border-top:3px solid; border-left:3px solid; border-radius:6px 0 0 0;}
+  .corner.tr{top:16px; right:16px; border-top:3px solid; border-right:3px solid; border-radius:0 6px 0 0;}
+  .corner.bl{bottom:16px; left:16px; border-bottom:3px solid; border-left:3px solid; border-radius:0 0 0 6px;}
+  .corner.br{bottom:16px; right:16px; border-bottom:3px solid; border-right:3px solid; border-radius:0 0 6px 0;}
+  .scan-band{
+    position:absolute; left:10%; right:10%; height:44px; top:50%;
+    transform:translateY(-50%); border-radius:10px;
+    background: linear-gradient(180deg, rgba(79,93,255,0.0), rgba(79,93,255,0.16), rgba(79,93,255,0.0));
+    border-top:1.5px solid rgba(123,133,255,0.9); border-bottom:1.5px solid rgba(123,133,255,0.9);
+    animation: bandPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes bandPulse{ 0%,100%{ opacity:0.55; } 50%{ opacity:1; } }
+  .viewfinder.idle .scan-band{ display:none; }
+  .viewfinder.idle::after{
+    content:"toque em \"iniciar leitura\" para ligar a câmera";
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:0 44px; font-size:12.5px; color:#AEB4D6; font-weight:500;
+    background: linear-gradient(180deg, #171B2E, #0D0F1A);
+  }
+  .viewfinder.flash-ok{ animation: flashOk 0.4s ease; }
+  .viewfinder.flash-bad{ animation: flashBad 0.4s ease; }
+  @keyframes flashOk{ 0%{ box-shadow: inset 0 0 0 5px var(--good); } 100%{ box-shadow: inset 0 0 0 0px transparent; } }
+  @keyframes flashBad{ 0%{ box-shadow: inset 0 0 0 5px var(--bad); } 100%{ box-shadow: inset 0 0 0 0px transparent; } }
+
+  .scan-alert{
+    position:absolute; left:8%; right:8%; top:50%; transform:translateY(-50%) scale(0.85);
+    background:var(--bad); color:#fff; border-radius:16px; padding:18px 16px;
+    text-align:center; opacity:0; pointer-events:none; z-index:5;
+    transition: opacity .18s ease, transform .18s ease;
+    box-shadow: 0 14px 30px -8px rgba(0,0,0,0.5);
+  }
+  .scan-alert.show{ opacity:1; transform:translateY(-50%) scale(1); }
+  .scan-alert.warn{ background:var(--amber); }
+  .scan-alert .scan-alert-icon{ display:block; font-size:30px; margin-bottom:6px; }
+  .scan-alert .scan-alert-text{
+    display:block; font-family:var(--font-display); font-size:16px; font-weight:800;
+    letter-spacing:0.02em; text-transform:uppercase; line-height:1.3;
+  }
+  .scan-alert .scan-alert-sub{
+    display:block; font-size:12px; font-weight:600; margin-top:5px; opacity:0.92;
+  }
+
+  .cam-controls{ display:flex; gap:8px; padding:12px 6px 4px; }
+  button{ font-family:var(--font-body); border:none; cursor:pointer; }
+  .btn{
+    flex:1; border-radius:100px; padding:14px 16px; font-size:13.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    transition: transform .1s ease, opacity .15s ease;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn:disabled{ opacity:0.4; cursor:default; }
+  .btn-primary{ background:var(--accent); color:#fff; box-shadow:0 8px 18px -6px rgba(79,93,255,0.55); }
+  .btn-ghost{ background:var(--surface-2); color:var(--ink); }
+  .btn-danger-ghost{ background:var(--bad-soft); color:var(--bad); }
+  .btn-icon{ flex:none; width:48px; padding:14px; }
+
+  .permission-note{
+    margin:10px 4px 0; font-size:12px; color:var(--bad); font-weight:500;
+    display:none; background:var(--bad-soft); padding:10px 12px; border-radius:var(--radius-sm);
+  }
+  .permission-note.show{ display:block; }
+
+  /* Entrada manual */
+  .manual-entry-row{ margin-top:10px; text-align:center; }
+  .manual-entry-row button{
+    background:none; color:var(--muted); font-size:12px; font-weight:600;
+    text-decoration:underline; text-underline-offset:2px; padding:6px;
+  }
+
+  /* Route list */
+  .route-section{ margin-top:24px; }
+  .route-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
+  }
+  .route-head h2{
+    font-family:var(--font-display); font-size:14.5px; font-weight:700; margin:0;
+  }
+  .route-head-actions{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
+  .link-btn{
+    background:none; color:var(--accent); font-size:12px; font-weight:700;
+    padding:4px 2px; text-decoration:underline; text-underline-offset:2px;
+  }
+  .link-btn-danger{ color:var(--muted); }
+
+  .route-line{ position:relative; }
+  .stop-row{
+    position:relative; display:flex; gap:14px; padding-bottom:18px;
+  }
+  .stop-row:last-child{ padding-bottom:0; }
+  .stop-row .rail{
+    position:relative; width:34px; flex-shrink:0; display:flex; justify-content:center;
+  }
+  .stop-row .rail::before{
+    content:""; position:absolute; top:34px; bottom:-18px; width:2px; background:var(--line);
+  }
+  .stop-row:last-child .rail::before{ display:none; }
+  .stop-badge{
+    width:34px; height:34px; border-radius:50%; background:var(--accent);
+    color:#fff; font-family:var(--font-display); font-weight:700; font-size:12.5px;
+    display:flex; align-items:center; justify-content:center; z-index:1;
+    box-shadow:0 4px 10px -3px rgba(79,93,255,0.6);
+  }
+  .stop-card{
+    flex:1; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius-md); padding:12px 14px; box-shadow:var(--shadow);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .stop-card .code{
+    font-family:var(--font-body); font-size:13.5px; font-weight:600; color:var(--ink);
+    word-break:break-all; line-height:1.4;
+  }
+  .stop-card .code small{ display:block; font-size:10.5px; color:var(--muted); font-weight:500; margin-top:1px; }
+  .stop-card .del{
+    flex-shrink:0; background:var(--bad-soft); color:var(--bad); font-size:10.5px;
+    font-weight:700; padding:7px 10px; border-radius:100px;
+  }
+
+  .empty-state{
+    text-align:center; padding:34px 20px; background:var(--surface);
+    border:1px dashed var(--line); border-radius:var(--radius-md); color:var(--muted);
+  }
+  .empty-state .icon{ font-size:26px; margin-bottom:8px; }
+  .empty-state p{ margin:0; font-size:12.5px; font-weight:500; line-height:1.5; }
+
+  .stop-divider{
+    border-top:1.5px dashed var(--line);
+    margin: -8px 0 10px 48px;
+  }
+
+  /* Modal / bottom sheet */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(23,27,46,0.45); backdrop-filter: blur(2px);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal{
+    width:100%; max-width:520px; background:var(--surface);
+    border-radius:24px 24px 0 0; padding:10px 20px 26px;
+    animation: slideUp 0.24s cubic-bezier(.2,.8,.3,1);
+    box-shadow: 0 -12px 30px rgba(23,27,46,0.18);
+  }
+  @keyframes slideUp{ from{ transform:translateY(24px); opacity:0.5; } to{ transform:translateY(0); opacity:1; } }
+  .handle{ width:36px; height:4px; background:var(--line); border-radius:100px; margin:6px auto 16px; }
+  .modal .status-pill{
+    display:inline-flex; align-items:center; gap:6px; background:var(--good-soft); color:var(--good);
+    font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:100px; margin-bottom:12px;
+  }
+  .modal .code-display{
+    font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--ink);
+    margin-bottom:18px; word-break:break-all; letter-spacing:-0.01em;
+  }
+  .modal label{
+    font-size:12px; color:var(--muted); font-weight:700; display:block; margin-bottom:8px;
+  }
+  .modal input{
+    width:100%; font-family:var(--font-display); font-size:26px; font-weight:700; text-align:center;
+    background:var(--surface-2); border:2px solid transparent; border-radius:var(--radius-md);
+    color:var(--ink); padding:16px; margin-bottom:6px;
+  }
+  .modal input:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .modal .warn{ font-size:12px; color:var(--amber); font-weight:600; min-height:16px; margin-bottom:14px; }
+  .modal .modal-actions{ display:flex; gap:10px; }
+  .modal .modal-actions .btn{ padding:15px; }
+  .modal .field-row{ margin-bottom:14px; }
+
+  .access-payment{
+    margin-top:18px; padding-top:16px; border-top:1px dashed var(--line);
+    text-align:center;
+  }
+  .access-payment-title{
+    font-size:12px; color:var(--muted); font-weight:700; margin:0 0 10px;
+  }
+  .access-payment-actions{ display:flex; gap:8px; }
+  .btn-pix{ background:#00B4A0; color:#fff; }
+  .btn-whats{ background:#25D366; color:#fff; }
+  .access-payment-hint{
+    font-size:11px; color:var(--muted); font-weight:500; margin:12px 0 0; line-height:1.5;
+  }
+
+  .toast{
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; font-size:12.5px; font-weight:700;
+    padding:11px 18px; border-radius:100px; opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s; letter-spacing:0.01em; z-index:60;
+    box-shadow: 0 10px 24px -6px rgba(23,27,46,0.4);
+  }
+  .toast.show{ opacity:1; }
+  .toast.bad{ background:var(--bad); }
+  .toast.good{ background:var(--good); }
+  .toast.warn{ background:var(--amber); color:#3A2400; }
+
+  .license-bar{
+    background:var(--surface); border:1px solid var(--line); border-radius:100px;
+    padding:8px 14px; font-size:11.5px; font-weight:600; color:var(--muted);
+    text-align:center; margin-bottom:14px; box-shadow:var(--shadow);
+  }
+  .license-bar b{ color:var(--ink); font-weight:700; }
+  .license-bar.urgent{ background:var(--bad-soft); color:var(--bad); border-color:transparent; }
+  .license-bar.urgent b{ color:var(--bad); }
+
+  /* Trava a tela em modo retrato de verdade: quando o celular fica na
+     horizontal, giramos o conteúdo de volta, então o app continua
+     aparecendo em pé, ocupando a tela toda, sem mensagem de aviso. */
+  @media screen and (orientation: landscape){
+    html{
+      transform: rotate(-90deg);
+      transform-origin: left top;
+      width: 100vh;
+      height: 100vw;
+      overflow-x: hidden;
+      position: absolute;
+      top: 100%;
+      left: 0;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 12 21 12 21C12 21 4 16.42 4 12Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="2.5" fill="white"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Minha Rota</h1>
+        <p id="routeSubtitle">escaneie e organize por parada</p>
+      </div>
+    </div>
+    <div class="counter-group">
+      <div class="counter-chip">
+        <span class="dot" id="countNum">0</span>
+        <span class="lbl">códigos <b id="countWord">lidos</b></span>
+      </div>
+      <div class="counter-chip counter-chip-alt">
+        <span class="dot dot-alt" id="stopCountNum">0</span>
+        <span class="lbl">paradas</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="license-bar" id="licenseBar" style="display:none;">
+    Validade da chave: <b id="licenseDate">-</b> <span id="licenseDays"></span>
+  </div>
+
+  <div class="cam-card">
+    <div class="mode-toggle" id="modeToggle">
+      <button class="mode-btn active" data-mode="barcode">Código de Barras</button>
+      <button class="mode-btn" data-mode="qr">QR Code</button>
+    </div>
+    <div class="viewfinder idle" id="viewfinder">
+      <video id="video" playsinline muted></video>
+      <div class="frame-overlay">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="scan-band" id="scanBand"></div>
+      </div>
+      <div class="scan-alert" id="scanAlert">
+        <span class="scan-alert-icon" id="scanAlertIcon">⚠️</span>
+        <span class="scan-alert-text" id="scanAlertText">—</span>
+        <span class="scan-alert-sub" id="scanAlertSub"></span>
+      </div>
+    </div>
+    <div class="cam-controls">
+      <button class="btn btn-primary" id="startBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
+        Iniciar leitura
+      </button>
+      <button class="btn btn-danger-ghost" id="stopBtn" disabled>Parar</button>
+      <button class="btn btn-ghost btn-icon" id="switchBtn" disabled title="Trocar câmera">⟳</button>
+    </div>
+    <div class="permission-note" id="permNote">
+      Câmera bloqueada ou indisponível. Verifique as permissões do navegador para este site e tente novamente.
+    </div>
+    <div class="manual-entry-row">
+      <button id="manualCodeBtn">Digitar código manualmente</button>
+    </div>
+  </div>
+
+  <div class="route-section">
+    <div class="route-head">
+      <h2>Sua rota</h2>
+      <div class="route-head-actions">
+        <button class="link-btn" id="startRouteBtn">Iniciar Rota</button>
+        <button class="link-btn" id="shareBtn">Compartilhar</button>
+        <button class="link-btn link-btn-danger" id="clearBtn">Limpar tudo</button>
+      </div>
+    </div>
+    <div class="route-line" id="listBody">
+      <div class="empty-state">
+        <div class="icon">📍</div>
+        <p>Nenhuma parada ainda.<br>Escaneie um código para começar sua rota.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill">✓ código válido</div>
+    <div class="code-display" id="modalCode">—</div>
+    <div class="field-row">
+      <label for="paradaInput">Número da parada</label>
+      <input type="text" inputmode="numeric" id="paradaInput" placeholder="ex: 54" autocomplete="off">
+    </div>
+    <div class="warn" id="modalWarn"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modalCancel" style="flex:1;">Descartar</button>
+      <button class="btn btn-primary" id="modalConfirm" style="flex:2;">Confirmar parada</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop show" id="accessBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div id="accessLoading">
+      <div class="status-pill" style="background:var(--accent-soft); color:var(--accent);">🔒 verificando acesso...</div>
+    </div>
+    <div id="accessForm" style="display:none;">
+      <div class="status-pill" style="background:var(--accent-soft); color:var(--accent);">🔒 acesso restrito</div>
+      <div class="code-display" style="font-size:15.5px; font-weight:600;">Informe seus dados de acesso para continuar.</div>
+      <div class="field-row">
+        <label for="accessNameInput">Nome</label>
+        <input type="text" id="accessNameInput" placeholder="seu nome" autocomplete="off">
+      </div>
+      <div class="field-row">
+        <label for="accessKeyInput">Chave de acesso</label>
+        <input type="text" id="accessKeyInput" placeholder="ex: A1B2C3D4" autocomplete="off" style="text-transform:uppercase;">
+      </div>
+      <div class="warn" id="accessWarn"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="accessConfirm" style="flex:1;">Entrar</button>
+      </div>
+
+      <div class="access-payment">
+        <p class="access-payment-title">Ainda não tem uma chave?</p>
+        <div class="access-payment-actions">
+          <button class="btn btn-pix" id="pixBtn">💠 Pagar com Pix</button>
+          <button class="btn btn-whats" id="whatsBtn">💬 Falar no WhatsApp</button>
+        </div>
+        <p class="access-payment-hint">Ao realizar o pagamento, me envie o comprovante pelo WhatsApp com o seu Nome.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="welcomeBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:var(--accent-soft); color:var(--accent);">👋 bem-vindo ao Minha Rota</div>
+    <div class="code-display" style="font-size:15.5px; font-weight:600;">Antes de começar, me diz qual rota você vai fazer a leitura hoje.</div>
+    <div class="field-row">
+      <label for="welcomeRouteInput">Rota</label>
+      <input type="text" id="welcomeRouteInput" placeholder="ex: A4_AM1" autocomplete="off">
+    </div>
+    <div class="warn" id="welcomeWarn"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="welcomeConfirm" style="flex:1;">Começar rota</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="manualCodeBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="field-row">
+      <label for="manualCodeInput">Digite o código (11 dígitos)</label>
+      <input type="text" inputmode="numeric" id="manualCodeInput" placeholder="ex: 12345678901" autocomplete="off">
+    </div>
+    <div class="warn" id="manualCodeWarn"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="manualCodeCancel" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" id="manualCodeConfirm" style="flex:2;">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  // ---- Firebase (controle de acesso por chave) ----
+  const firebaseConfig = {
+    apiKey: "AIzaSyB2qqbVSweYDo1OcWpLEfPWStn4JRH_cPo",
+    authDomain: "app-minha-rota.firebaseapp.com",
+    projectId: "app-minha-rota",
+    storageBucket: "app-minha-rota.firebasestorage.app",
+    messagingSenderId: "451307357833",
+    appId: "1:451307357833:web:0097f6d16ce09e0bc8a858"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const video = document.getElementById('video');
+  const viewfinder = document.getElementById('viewfinder');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const switchBtn = document.getElementById('switchBtn');
+  const permNote = document.getElementById('permNote');
+  const scanAlert = document.getElementById('scanAlert');
+  const scanAlertIcon = document.getElementById('scanAlertIcon');
+  const scanAlertText = document.getElementById('scanAlertText');
+  const scanAlertSub = document.getElementById('scanAlertSub');
+  const routeSubtitle = document.getElementById('routeSubtitle');
+
+  const accessBackdrop = document.getElementById('accessBackdrop');
+  const accessLoading = document.getElementById('accessLoading');
+  const accessForm = document.getElementById('accessForm');
+  const accessNameInput = document.getElementById('accessNameInput');
+  const accessKeyInput = document.getElementById('accessKeyInput');
+  const accessWarn = document.getElementById('accessWarn');
+  const accessConfirm = document.getElementById('accessConfirm');
+  const licenseBar = document.getElementById('licenseBar');
+  const licenseDate = document.getElementById('licenseDate');
+  const licenseDays = document.getElementById('licenseDays');
+
+  const welcomeBackdrop = document.getElementById('welcomeBackdrop');
+  const welcomeRouteInput = document.getElementById('welcomeRouteInput');
+  const welcomeWarn = document.getElementById('welcomeWarn');
+  const welcomeConfirm = document.getElementById('welcomeConfirm');
+  const listBody = document.getElementById('listBody');
+  const countNum = document.getElementById('countNum');
+  const countWord = document.getElementById('countWord');
+  const stopCountNum = document.getElementById('stopCountNum');
+  const clearBtn = document.getElementById('clearBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const toast = document.getElementById('toast');
+  const modeToggle = document.getElementById('modeToggle');
+
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalCode = document.getElementById('modalCode');
+  const paradaInput = document.getElementById('paradaInput');
+  const modalWarn = document.getElementById('modalWarn');
+  const modalCancel = document.getElementById('modalCancel');
+  const modalConfirm = document.getElementById('modalConfirm');
+
+  const manualCodeBtn = document.getElementById('manualCodeBtn');
+  const manualCodeBackdrop = document.getElementById('manualCodeBackdrop');
+  const manualCodeInput = document.getElementById('manualCodeInput');
+  const manualCodeWarn = document.getElementById('manualCodeWarn');
+  const manualCodeCancel = document.getElementById('manualCodeCancel');
+  const manualCodeConfirm = document.getElementById('manualCodeConfirm');
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const CODE_LENGTH = 11;
+  const CODE_REGEX = new RegExp('^\\d{' + CODE_LENGTH + '}$');
+
+  let stream = null;
+  let rafId = null;
+  let facingMode = 'environment';
+  let scanningPaused = false;
+  let lastRawSeen = null;
+  let lastRawSeenAt = 0;
+  let pendingCode = null;
+  let scanMode = 'barcode'; // 'qr' ou 'barcode'
+
+  let entries = []; // {codigo, parada}
+
+  const STORAGE_KEY = 'rotaParadas.entries';
+
+  function saveEntries(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }catch(e){ /* armazenamento indisponível — segue sem persistir */ }
+  }
+
+  function loadEntries(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw){
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) entries = parsed;
+      }
+    }catch(e){ /* ignora dado corrompido */ }
+  }
+
+  let currentRoute = null;
+  const ROUTE_STORAGE_KEY = 'rotaParadas.route';
+
+  function saveRoute(){
+    try{
+      if (currentRoute) localStorage.setItem(ROUTE_STORAGE_KEY, currentRoute);
+      else localStorage.removeItem(ROUTE_STORAGE_KEY);
+    }catch(e){ /* armazenamento indisponível */ }
+  }
+
+  function loadRoute(){
+    try{
+      currentRoute = localStorage.getItem(ROUTE_STORAGE_KEY) || null;
+    }catch(e){ currentRoute = null; }
+  }
+
+  function renderRouteSubtitle(){
+    routeSubtitle.textContent = currentRoute ? ('rota: ' + currentRoute) : 'escaneie e organize por parada';
+  }
+
+  function openWelcomeModal(){
+    welcomeRouteInput.value = currentRoute || '';
+    welcomeWarn.textContent = '';
+    welcomeBackdrop.classList.add('show');
+    setTimeout(() => welcomeRouteInput.focus(), 150);
+  }
+
+  function confirmWelcome(){
+    const val = welcomeRouteInput.value.trim();
+    if (val === ''){
+      welcomeWarn.textContent = 'informe a rota antes de continuar';
+      return;
+    }
+    currentRoute = val;
+    saveRoute();
+    renderRouteSubtitle();
+    welcomeBackdrop.classList.remove('show');
+    showToast('Rota ' + val + ' iniciada', 'good');
+  }
+
+  // ---- Controle de acesso por chave (nome + chave, com validade e vínculo ao aparelho) ----
+  const ACCESS_STORAGE_KEY = 'minhaRota.acesso';
+  const DEVICE_ID_KEY = 'minhaRota.deviceId';
+
+  function getDeviceId(){
+    let id = null;
+    try{ id = localStorage.getItem(DEVICE_ID_KEY); }catch(e){}
+    if (!id){
+      id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : ('dev-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      try{ localStorage.setItem(DEVICE_ID_KEY, id); }catch(e){}
+    }
+    return id;
+  }
+
+  function loadAccessInfo(){
+    try{
+      const raw = localStorage.getItem(ACCESS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  function saveAccessInfo(info){
+    try{ localStorage.setItem(ACCESS_STORAGE_KEY, JSON.stringify(info)); }catch(e){}
+  }
+
+  function clearAccessInfo(){
+    try{ localStorage.removeItem(ACCESS_STORAGE_KEY); }catch(e){}
+  }
+
+  function isExpired(validadeStr){
+    if (!validadeStr) return true;
+    const limite = new Date(validadeStr + 'T23:59:59');
+    if (isNaN(limite.getTime())) return true;
+    return Date.now() > limite.getTime();
+  }
+
+  function diasRestantes(validadeStr){
+    const limite = new Date(validadeStr + 'T23:59:59');
+    if (isNaN(limite.getTime())) return null;
+    return Math.ceil((limite.getTime() - Date.now()) / 86400000);
+  }
+
+  function formatarDataBr(validadeStr){
+    const partes = (validadeStr || '').split('-');
+    if (partes.length !== 3) return validadeStr;
+    return partes[2] + '/' + partes[1] + '/' + partes[0];
+  }
+
+  function renderLicenseInfo(validadeStr){
+    const dias = diasRestantes(validadeStr);
+    if (dias === null) return;
+    licenseBar.style.display = 'block';
+    licenseDate.textContent = formatarDataBr(validadeStr);
+    licenseDays.textContent = dias > 0
+      ? '(' + dias + ' dia' + (dias === 1 ? '' : 's') + ' restante' + (dias === 1 ? '' : 's') + ')'
+      : '(vence hoje)';
+    licenseBar.classList.toggle('urgent', dias <= 5);
+  }
+
+  function avisarVencimentoSeNecessario(validadeStr){
+    const dias = diasRestantes(validadeStr);
+    if (dias === null || dias > 5) return;
+    const hojeStr = new Date().toDateString();
+    let ultimoAviso = null;
+    try{ ultimoAviso = localStorage.getItem('minhaRota.avisoLicencaData'); }catch(e){}
+    if (ultimoAviso === hojeStr) return;
+    try{ localStorage.setItem('minhaRota.avisoLicencaData', hojeStr); }catch(e){}
+    const msg = dias > 0
+      ? 'Atenção: faltam ' + dias + ' dia' + (dias === 1 ? '' : 's') + ' para vencer sua licença.'
+      : 'Atenção: sua licença vence hoje!';
+    showToast(msg, 'warn', 4500);
+  }
+
+  async function fetchChave(chave){
+    const doc = await db.collection('chaves').doc(chave).get();
+    return doc.exists ? doc.data() : null;
+  }
+
+  function showAccessForm(message){
+    accessLoading.style.display = 'none';
+    accessForm.style.display = 'block';
+    accessWarn.textContent = message || '';
+    accessBackdrop.classList.add('show');
+    setTimeout(() => accessNameInput.focus(), 150);
+  }
+
+  function hideAccessGate(){
+    accessBackdrop.classList.remove('show');
+  }
+
+  async function validateStoredAccess(){
+    const info = loadAccessInfo();
+    if (!info || !info.chave){
+      showAccessForm();
+      return;
+    }
+    try{
+      const data = await fetchChave(info.chave);
+      if (!data){
+        clearAccessInfo();
+        showAccessForm('sua chave não foi encontrada — faça login novamente');
+        return;
+      }
+      if (data.ativo === false){
+        showAccessForm('este acesso foi desativado. entre em contato para renovar.');
+        return;
+      }
+      if (data.validade === undefined){
+        showAccessForm('a chave está sem o campo "validade" configurado no Firestore. confira o nome do campo (minúsculo, sem espaço) no console.');
+        return;
+      }
+      if (isExpired(data.validade)){
+        showAccessForm('sua chave expirou em ' + data.validade + '. solicite a renovação.');
+        return;
+      }
+      if (data.aparelhoId && data.aparelhoId !== info.deviceId){
+        clearAccessInfo();
+        showAccessForm('esta chave já está vinculada a outro aparelho.');
+        return;
+      }
+      renderLicenseInfo(data.validade);
+      avisarVencimentoSeNecessario(data.validade);
+      hideAccessGate();
+      initAppAfterAccess();
+    }catch(err){
+      showAccessForm('não foi possível verificar seu acesso agora. verifique a internet e tente de novo.');
+    }
+  }
+
+  async function confirmAccess(){
+    const nome = accessNameInput.value.trim();
+    const chave = accessKeyInput.value.trim().toUpperCase();
+    if (nome === ''){
+      accessWarn.textContent = 'informe seu nome';
+      return;
+    }
+    if (chave === ''){
+      accessWarn.textContent = 'informe a chave de acesso';
+      return;
+    }
+    accessConfirm.disabled = true;
+    accessWarn.textContent = 'verificando...';
+    try{
+      const data = await fetchChave(chave);
+      if (!data){
+        accessWarn.textContent = 'chave não encontrada — confira e tente de novo';
+        accessConfirm.disabled = false;
+        return;
+      }
+      if (data.ativo === false){
+        accessWarn.textContent = 'este acesso está desativado. entre em contato para renovar.';
+        accessConfirm.disabled = false;
+        return;
+      }
+      if (data.validade === undefined){
+        accessWarn.textContent = 'a chave está sem o campo "validade" configurado no Firestore. confira o nome do campo (minúsculo, sem espaço) no console.';
+        accessConfirm.disabled = false;
+        return;
+      }
+      if (isExpired(data.validade)){
+        accessWarn.textContent = 'esta chave expirou em ' + data.validade + '. solicite a renovação.';
+        accessConfirm.disabled = false;
+        return;
+      }
+      const deviceId = getDeviceId();
+      if (data.aparelhoId && data.aparelhoId !== deviceId){
+        accessWarn.textContent = 'esta chave já está vinculada a outro aparelho.';
+        accessConfirm.disabled = false;
+        return;
+      }
+      if (!data.aparelhoId){
+        await db.collection('chaves').doc(chave).update({ aparelhoId: deviceId });
+      }
+      saveAccessInfo({ chave: chave, deviceId: deviceId, nome: nome });
+      accessConfirm.disabled = false;
+      renderLicenseInfo(data.validade);
+      avisarVencimentoSeNecessario(data.validade);
+      hideAccessGate();
+      initAppAfterAccess();
+    }catch(err){
+      accessWarn.textContent = 'erro ao verificar a chave. verifique sua internet e tente de novo.';
+      accessConfirm.disabled = false;
+    }
+  }
+
+  accessConfirm.addEventListener('click', confirmAccess);
+  accessKeyInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmAccess(); });
+  accessNameInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmAccess(); });
+
+  const PIX_CODE = "00020126360014br.gov.bcb.pix0114+5573982354945520400005303986540519.905802BR5911Murilo Reis6009Sao Paulo62220518daqr47274832827522630475A0";
+  const WHATSAPP_URL = "https://wa.me/qr/MMILHO4ISS4KM1";
+
+  function copyToClipboard(text){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(() => { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  const pixBtn = document.getElementById('pixBtn');
+  const whatsBtn = document.getElementById('whatsBtn');
+  pixBtn.addEventListener('click', () => {
+    copyToClipboard(PIX_CODE);
+    showToast('Código Pix copiado! Cole no app do seu banco.', 'good', 3000);
+  });
+  whatsBtn.addEventListener('click', () => {
+    window.open(WHATSAPP_URL, '_blank');
+  });
+
+  let barcodeDetector = null;
+  let usingNativeDetector = false;
+  if ('BarcodeDetector' in window) {
+    BarcodeDetector.getSupportedFormats().then(formats => {
+      barcodeDetector = new BarcodeDetector({ formats });
+      usingNativeDetector = true;
+    }).catch(() => { usingNativeDetector = false; });
+  }
+
+  function showToast(msg, kind, duration){
+    toast.textContent = msg;
+    toast.classList.remove('bad','good','warn');
+    if (kind) toast.classList.add(kind);
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), duration || 1700);
+  }
+
+  function vibrate(pattern){ if (navigator.vibrate) navigator.vibrate(pattern || 80); }
+
+  function setMode(mode){
+    scanMode = mode;
+    modeToggle.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+    });
+    lastRawSeen = null; // permite reler algo que tinha sido ignorado no outro modo
+    if (mode === 'barcode' && !usingNativeDetector){
+      showToast('Este navegador não suporta leitor nativo de código de barras', 'bad');
+    }
+  }
+
+  modeToggle.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.mode-btn');
+    if (!btn) return;
+    setMode(btn.getAttribute('data-mode'));
+  });
+
+  async function start(){
+    permNote.classList.remove('show');
+    permNote.textContent = '';
+
+    try{
+      if (screen.orientation && screen.orientation.lock){
+        await screen.orientation.lock('portrait');
+      }
+    }catch(e){ /* o navegador pode não permitir fora do modo instalado — segue normalmente */ }
+
+    if (!window.isSecureContext){
+      permNote.textContent = 'Este endereço não é seguro (não é https). Por segurança, os navegadores só liberam a câmera em páginas https ou abertas via localhost. Baixe o arquivo e hospede-o em um endereço https, ou use um servidor local.';
+      permNote.classList.add('show');
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      permNote.textContent = 'Este navegador não tem suporte a acesso de câmera (API getUserMedia indisponível). Tente abrir em uma versão atualizada do Chrome ou Safari.';
+      permNote.classList.add('show');
+      return;
+    }
+
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 960 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      viewfinder.classList.remove('idle');
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      switchBtn.disabled = false;
+      tick();
+    }catch(err){
+      let msg = 'Não foi possível abrir a câmera (' + (err && err.name ? err.name : 'erro desconhecido') + ').';
+      if (err && err.name === 'NotAllowedError'){
+        msg = 'Permissão de câmera negada. Toque no ícone de cadeado/informações ao lado do endereço, libere a câmera para este site e tente de novo.';
+      } else if (err && err.name === 'NotFoundError'){
+        msg = 'Nenhuma câmera foi encontrada neste dispositivo.';
+      } else if (err && err.name === 'NotReadableError'){
+        msg = 'A câmera está em uso por outro aplicativo ou aba. Feche-o e tente novamente.';
+      } else if (err && err.name === 'OverconstrainedError'){
+        msg = 'A câmera do dispositivo não atende às configurações pedidas. Tente trocar de câmera.';
+      } else if (err && err.name === 'SecurityError'){
+        msg = 'O navegador bloqueou o acesso à câmera nesta página (permissão de câmera não liberada neste ambiente).';
+      }
+      permNote.textContent = msg;
+      permNote.classList.add('show');
+    }
+  }
+
+  function stop(){
+    if (rafId) cancelAnimationFrame(rafId);
+    if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+    viewfinder.classList.add('idle');
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    switchBtn.disabled = true;
+  }
+
+  async function tick(){
+    if (!stream) return;
+    if (!scanningPaused && video.readyState === video.HAVE_ENOUGH_DATA){
+      const w = video.videoWidth, h = video.videoHeight;
+      if (w && h){
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+
+        let raw = null;
+
+        if (scanMode === 'qr'){
+          if (window.jsQR){
+            const imageData = ctx.getImageData(0, 0, w, h);
+            const qr = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+            if (qr && qr.data) raw = qr.data;
+          }
+        } else {
+          if (usingNativeDetector && barcodeDetector){
+            try{
+              const bitmap = await createImageBitmap(canvas);
+              const results = await barcodeDetector.detect(bitmap);
+              if (results && results.length > 0){ raw = results[0].rawValue; }
+            }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
+          }
+        }
+
+        if (raw) handleRaw(raw);
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  let scanAlertTimer = null;
+  function showScanAlert(kind, text, sub){
+    scanAlert.classList.remove('warn');
+    if (kind === 'warn') scanAlert.classList.add('warn');
+    scanAlertIcon.textContent = kind === 'warn' ? '🔁' : '⚠️';
+    scanAlertText.textContent = text;
+    scanAlertSub.textContent = sub || '';
+    scanAlert.classList.add('show');
+    if (scanAlertTimer) clearTimeout(scanAlertTimer);
+    scanAlertTimer = setTimeout(() => scanAlert.classList.remove('show'), 2200);
+  }
+
+  // O QR Code usado vem no formato JSON, ex: [QR] {"id":"44608899766","t":"lm"}
+  // Extraímos o campo "id". Se não for JSON (ex: código de barras comum),
+  // usamos o texto lido direto.
+  function extractCode(raw){
+    let text = (raw || '').trim();
+    text = text.replace(/^\[[^\]]*\]\s*/, ''); // remove prefixo tipo "[QR] " se existir
+    try{
+      const obj = JSON.parse(text);
+      if (obj && typeof obj.id !== 'undefined'){
+        return String(obj.id).trim();
+      }
+    }catch(e){ /* não é JSON — segue com o texto puro */ }
+    return text;
+  }
+
+  function handleRaw(raw){
+    const now = Date.now();
+    if (raw === lastRawSeen && (now - lastRawSeenAt) < 2000) return;
+    lastRawSeen = raw;
+    lastRawSeenAt = now;
+
+    const cleaned = extractCode(raw);
+
+    if (!CODE_REGEX.test(cleaned)){
+      vibrate([40,60,40]);
+      viewfinder.classList.add('flash-bad');
+      setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
+      showScanAlert('bad', 'Código inválido', 'precisa ter ' + CODE_LENGTH + ' dígitos numéricos');
+      showToast('Código inválido — precisa ter ' + CODE_LENGTH + ' dígitos', 'bad');
+      return;
+    }
+
+    const existing = entries.find(e => e.codigo === cleaned);
+    if (existing){
+      vibrate([60,50,60,50,60]);
+      viewfinder.classList.add('flash-bad');
+      setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
+      showScanAlert('warn', 'Código duplicado', 'já vinculado à parada ' + existing.parada);
+    } else {
+      vibrate(90);
+      viewfinder.classList.add('flash-ok');
+      setTimeout(() => viewfinder.classList.remove('flash-ok'), 400);
+    }
+
+    scanningPaused = true;
+    pendingCode = cleaned;
+    openModal(cleaned);
+  }
+
+  function openModal(code){
+    modalCode.textContent = code;
+    paradaInput.value = '';
+    modalWarn.textContent = '';
+    const existing = entries.find(e => e.codigo === code);
+    if (existing){
+      modalWarn.textContent = 'já vinculado à parada ' + existing.parada + ' — confirmar irá substituir';
+    }
+    modalBackdrop.classList.add('show');
+    setTimeout(() => paradaInput.focus(), 150);
+  }
+
+  function closeModal(resume){
+    modalBackdrop.classList.remove('show');
+    pendingCode = null;
+    if (resume !== false){
+      setTimeout(() => { scanningPaused = false; }, 400);
+    }
+  }
+
+  function confirmModal(){
+    const val = paradaInput.value.trim();
+    if (val === '' || !/^\d+$/.test(val)){
+      modalWarn.textContent = 'informe um número de parada válido';
+      return;
+    }
+    const paradaNum = parseInt(val, 10);
+    const code = pendingCode;
+
+    const existingIdx = entries.findIndex(e => e.codigo === code);
+    if (existingIdx >= 0){
+      entries[existingIdx].parada = paradaNum;
+    } else {
+      entries.push({ codigo: code, parada: paradaNum });
+    }
+    entries.sort((a, b) => a.parada - b.parada);
+    saveEntries();
+    renderList();
+    showToast('Parada ' + paradaNum + ' vinculada', 'good');
+    closeModal();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Uma cor por número de parada: parada 1 sempre com a mesma cor,
+  // parada 2 com outra, e assim por diante, ciclando pela paleta.
+  const PARADA_COLORS = ['#4F5DFF','#17B678','#F0473E','#F5A524','#9B5DE5','#00BBF9','#FF6B9D','#2EC4B6','#E76F51','#5C6BC0'];
+
+  function hexToRgba(hex, alpha){
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  function renderList(){
+    countNum.textContent = entries.length;
+    countWord.textContent = entries.length === 1 ? 'lido' : 'lidos';
+    stopCountNum.textContent = new Set(entries.map(e => e.parada)).size;
+    if (entries.length === 0){
+      listBody.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📍</div>
+          <p>Nenhuma parada ainda.<br>Escaneie um código para começar sua rota.</p>
+        </div>`;
+      return;
+    }
+    listBody.innerHTML = '';
+
+    // mapeia cada número de parada distinto para uma cor da paleta,
+    // na ordem em que aparecem (parada 1 = cor 0, parada 2 = cor 1...)
+    const distinctParadas = [];
+    entries.forEach(e => { if (!distinctParadas.includes(e.parada)) distinctParadas.push(e.parada); });
+    const paradaColor = {};
+    distinctParadas.forEach((p, i) => { paradaColor[p] = PARADA_COLORS[i % PARADA_COLORS.length]; });
+
+    entries.forEach((e, idx) => {
+      const color = paradaColor[e.parada];
+      const bgFraca = hexToRgba(color, 0.2);
+      const row = document.createElement('div');
+      row.className = 'stop-row';
+      row.innerHTML = `
+        <div class="rail"><div class="stop-badge" style="background:${color}; box-shadow:0 4px 10px -3px ${hexToRgba(color, 0.6)};">${e.parada}</div></div>
+        <div class="stop-card" style="background:${bgFraca}; border-color:${hexToRgba(color, 0.35)};">
+          <div class="code">${escapeHtml(e.codigo)}<small>parada ${e.parada}</small></div>
+          <button class="del" data-idx="${idx}">Remover</button>
+        </div>
+      `;
+      listBody.appendChild(row);
+      if (idx < entries.length - 1){
+        const divider = document.createElement('div');
+        divider.className = 'stop-divider';
+        listBody.appendChild(divider);
+      }
+    });
+    listBody.querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        entries.splice(idx, 1);
+        saveEntries();
+        renderList();
+      });
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function buildShareText(){
+    if (entries.length === 0) return '';
+    const qtd = entries.length + ' código' + (entries.length === 1 ? '' : 's');
+    const titulo = 'IDs da rota' + (currentRoute ? (' ' + currentRoute) : '') + ' - ' + qtd;
+    const linhas = entries.map(e => 'Parada ' + e.parada + ': ' + e.codigo);
+    return titulo + '\n\n' + linhas.join('\n');
+  }
+
+  async function shareList(){
+    if (entries.length === 0){
+      showToast('Nenhum código lido ainda', 'bad');
+      return;
+    }
+    const texto = buildShareText();
+
+    if (navigator.share){
+      try{
+        await navigator.share({ text: texto });
+        return;
+      }catch(err){
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+
+    const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
+    window.open(url, '_blank');
+  }
+
+  function openManualCodeModal(){
+    manualCodeInput.value = '';
+    manualCodeWarn.textContent = '';
+    manualCodeBackdrop.classList.add('show');
+    setTimeout(() => manualCodeInput.focus(), 150);
+  }
+  function closeManualCodeModal(){
+    manualCodeBackdrop.classList.remove('show');
+  }
+  function confirmManualCode(){
+    const val = manualCodeInput.value.trim();
+    if (!CODE_REGEX.test(val)){
+      manualCodeWarn.textContent = 'o código precisa ter exatamente ' + CODE_LENGTH + ' dígitos numéricos';
+      return;
+    }
+    closeManualCodeModal();
+    pendingCode = val;
+    openModal(val);
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+  switchBtn.addEventListener('click', async () => {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    stop();
+    await start();
+  });
+  const startRouteBtn = document.getElementById('startRouteBtn');
+  startRouteBtn.addEventListener('click', () => {
+    const hasEntries = entries.length > 0;
+    if (hasEntries && !confirm('Iniciar uma nova rota vai limpar a lista de paradas atual. Continuar?')) return;
+    entries = [];
+    saveEntries();
+    renderList();
+    currentRoute = null;
+    saveRoute();
+    renderRouteSubtitle();
+    openWelcomeModal();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (entries.length === 0) return;
+    if (!confirm('Remover todas as paradas da lista atual?')) return;
+    entries = [];
+    saveEntries();
+    renderList();
+  });
+
+  shareBtn.addEventListener('click', shareList);
+  modalCancel.addEventListener('click', () => closeModal());
+  modalConfirm.addEventListener('click', confirmModal);
+  paradaInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmModal(); });
+
+  manualCodeBtn.addEventListener('click', openManualCodeModal);
+  manualCodeCancel.addEventListener('click', closeManualCodeModal);
+  manualCodeConfirm.addEventListener('click', confirmManualCode);
+  manualCodeInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmManualCode(); });
+
+  welcomeConfirm.addEventListener('click', confirmWelcome);
+  welcomeRouteInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmWelcome(); });
+
+  function initAppAfterAccess(){
+    loadEntries();
+    renderList();
+    loadRoute();
+    renderRouteSubtitle();
+    if (!currentRoute){
+      openWelcomeModal();
+    } else {
+      welcomeBackdrop.classList.remove('show');
+    }
+  }
+
+  validateStoredAccess();
+
+  window.addEventListener('beforeunload', stop);
+
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* falha ao registrar — segue sem instalação offline */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
