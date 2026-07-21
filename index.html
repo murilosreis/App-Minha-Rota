@@ -1613,8 +1613,25 @@
   }
 
   lerEtiquetaBtn.addEventListener('click', () => {
-    etiquetaFileInput.click();
+    // Se o site estiver rodando dentro do app Android nativo (WebView com a
+    // ponte JS instalada), usa a câmera nativa + ML Kit, que é muito mais
+    // precisa. Caso contrário (navegador comum), cai no fluxo por foto + Tesseract.
+    if (window.AndroidEtiqueta && window.AndroidEtiqueta.lerEtiqueta){
+      etiquetaStatus.style.color = 'var(--muted)';
+      etiquetaStatus.textContent = 'abrindo câmera do app...';
+      window.AndroidEtiqueta.lerEtiqueta();
+    } else {
+      etiquetaFileInput.click();
+    }
   });
+
+  // Chamado pelo app Android nativo (via ponte JS) depois de ler a etiqueta
+  // com a câmera embutida. parada pode vir como número ou null; idEtiqueta
+  // pode vir como string de 11 dígitos ou null se não foi identificado.
+  window.onEtiquetaLida = function(nome, parada, idEtiqueta){
+    const paradaNum = (parada === null || parada === undefined || parada === '') ? null : Number(parada);
+    aplicarResultadoComparacao(idEtiqueta || null, (paradaNum !== null && !isNaN(paradaNum)) ? paradaNum : null);
+  };
 
   etiquetaFileInput.addEventListener('change', async (ev) => {
     const file = ev.target.files && ev.target.files[0];
