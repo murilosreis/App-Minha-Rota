@@ -467,11 +467,27 @@
     <div class="handle"></div>
     <div class="status-pill">✓ ID válido</div>
     <div class="code-display" id="modalCode">—</div>
+
+    <div class="field-row">
+      <button class="btn btn-ghost" id="lerEtiquetaBtn" style="width:100%;">📷 Ler etiqueta física</button>
+      <input type="file" id="etiquetaFileInput" accept="image/*" capture="environment" style="display:none;">
+    </div>
+    <div class="warn" id="etiquetaStatus" style="min-height:auto; margin-bottom:10px;"></div>
+
     <div class="field-row">
       <label for="paradaInput">Número da parada</label>
       <input type="text" inputmode="decimal" id="paradaInput" placeholder="ex: 54 ou 34.1" autocomplete="off">
     </div>
     <div class="warn" id="modalWarn"></div>
+
+    <div class="manual-entry-row" id="etiquetaManualRow" style="margin-top:-6px; margin-bottom:14px;">
+      <button id="etiquetaManualToggle">Etiqueta não foi lida? Digite o ID dela manualmente</button>
+    </div>
+    <div id="etiquetaManualBox" style="display:none; margin:-6px 0 14px;">
+      <input type="text" inputmode="numeric" id="etiquetaManualInput" placeholder="ID da etiqueta (11 dígitos)" autocomplete="off" style="width:100%; font-family:var(--font-display); font-size:16px; font-weight:700; text-align:center; background:var(--surface-2); border:2px solid transparent; border-radius:var(--radius-sm); color:var(--ink); padding:12px; margin-bottom:8px;">
+      <button class="btn btn-ghost" id="etiquetaManualCompare" style="width:100%;">Comparar com o ID escaneado</button>
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-ghost" id="modalCancel" style="flex:1;">Descartar</button>
       <button class="btn btn-primary" id="modalConfirm" style="flex:2;">Confirmar parada</button>
@@ -582,6 +598,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -648,6 +665,14 @@
   const modalCancel = document.getElementById('modalCancel');
   const modalConfirm = document.getElementById('modalConfirm');
 
+  const lerEtiquetaBtn = document.getElementById('lerEtiquetaBtn');
+  const etiquetaFileInput = document.getElementById('etiquetaFileInput');
+  const etiquetaStatus = document.getElementById('etiquetaStatus');
+  const etiquetaManualToggle = document.getElementById('etiquetaManualToggle');
+  const etiquetaManualBox = document.getElementById('etiquetaManualBox');
+  const etiquetaManualInput = document.getElementById('etiquetaManualInput');
+  const etiquetaManualCompare = document.getElementById('etiquetaManualCompare');
+
   const manualCodeBtn = document.getElementById('manualCodeBtn');
   const manualCodeBackdrop = document.getElementById('manualCodeBackdrop');
   const manualCodeInput = document.getElementById('manualCodeInput');
@@ -669,6 +694,10 @@
   let lastRawSeenAt = 0;
   let pendingCode = null;
   let scanMode = 'barcode'; // 'qr' ou 'barcode'
+
+  // Controla a conferência da etiqueta física: null = ainda não conferida,
+  // true = ID da etiqueta bate com o código escaneado, false = não bate (bloqueia a confirmação)
+  let etiquetaConferida = null;
 
   let entries = []; // {codigo, parada}
 
@@ -1185,10 +1214,19 @@
     openModal(cleaned);
   }
 
+  function resetEtiquetaCheck(){
+    etiquetaConferida = null;
+    etiquetaStatus.textContent = '';
+    etiquetaStatus.style.color = '';
+    etiquetaManualBox.style.display = 'none';
+    etiquetaManualInput.value = '';
+  }
+
   function openModal(code){
     modalCode.textContent = code;
     paradaInput.value = '';
     modalWarn.textContent = '';
+    resetEtiquetaCheck();
     const existing = entries.find(e => e.codigo === code);
     if (existing){
       modalWarn.textContent = 'já vinculado à parada ' + existing.parada + ' — confirmar irá substituir';
@@ -1200,12 +1238,17 @@
   function closeModal(resume){
     modalBackdrop.classList.remove('show');
     pendingCode = null;
+    resetEtiquetaCheck();
     if (resume !== false){
       setTimeout(() => { scanningPaused = false; }, 400);
     }
   }
 
   function confirmModal(){
+    if (etiquetaConferida === false){
+      modalWarn.textContent = 'os IDs não coincidem — confira a etiqueta física antes de continuar';
+      return;
+    }
     const val = paradaInput.value.trim().replace(',', '.');
     if (val === '' || !/^\d+(\.\d+)?$/.test(val)){
       modalWarn.textContent = 'informe um número de parada válido (ex: 34 ou 34.1)';
@@ -1486,6 +1529,132 @@
   manualCodeCancel.addEventListener('click', closeManualCodeModal);
   manualCodeConfirm.addEventListener('click', confirmManualCode);
   manualCodeInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmManualCode(); });
+
+  // ---- Leitura da etiqueta física (OCR) e comparação com o ID escaneado ----
+
+  // Reduz a foto antes de mandar pro OCR: fotos de câmera em alta resolução
+  // deixam o Tesseract mais lento e não trazem ganho de precisão proporcional.
+  function resizeImageFile(file, maxDim){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > maxDim){
+            height = Math.round(height * (maxDim / width));
+            width = maxDim;
+          } else if (height >= width && height > maxDim){
+            width = Math.round(width * (maxDim / height));
+            height = maxDim;
+          }
+          const c = document.createElement('canvas');
+          c.width = width; c.height = height;
+          c.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(c.toDataURL('image/jpeg', 0.9));
+        };
+        img.onerror = () => reject(new Error('falha ao processar a imagem'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('falha ao ler o arquivo'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Extrai o "nome" (ex: BM-69), o número da parada (o que vem depois do
+  // último traço, ex: 69) e o ID de 11 dígitos a partir do texto bruto lido.
+  function extrairDadosEtiqueta(textoLido){
+    const matchNome = textoLido.match(/ETIQUETA\s*#?\s*([\w-]+)/i);
+    const nome = matchNome ? matchNome[1] : null;
+
+    let parada = null;
+    if (nome){
+      const partes = nome.split('-');
+      const ultimaParte = partes[partes.length - 1];
+      const numeros = ultimaParte.match(/\d+/);
+      if (numeros) parada = parseFloat(numeros[0]);
+    }
+
+    const janelaAposId = textoLido.match(/ID\s*:?\s*([0-9A-Za-z\s\-.]{0,25})/i);
+    const somenteDigitos = janelaAposId ? janelaAposId[1].replace(/\D/g, '') : '';
+    const idEtiqueta = somenteDigitos.length >= CODE_LENGTH ? somenteDigitos.slice(0, CODE_LENGTH) : null;
+
+    return { nome, parada, idEtiqueta };
+  }
+
+  function aplicarResultadoComparacao(idEtiqueta, parada){
+    if (!idEtiqueta){
+      etiquetaConferida = null;
+      etiquetaStatus.style.color = 'var(--amber)';
+      etiquetaStatus.textContent = 'não consegui identificar o ID na etiqueta — tente de novo com mais luz, ou digite manualmente abaixo';
+      return;
+    }
+
+    if (idEtiqueta === pendingCode){
+      etiquetaConferida = true;
+      etiquetaStatus.style.color = 'var(--good)';
+      etiquetaStatus.textContent = '✓ etiqueta confere com o ID escaneado' + (parada !== null ? (' — parada ' + parada + ' preenchida') : '');
+      if (parada !== null) paradaInput.value = String(parada);
+      modalWarn.textContent = '';
+    } else {
+      etiquetaConferida = false;
+      etiquetaStatus.style.color = 'var(--bad)';
+      etiquetaStatus.textContent = '✗ os IDs não coincidem — etiqueta: ' + idEtiqueta + ' / escaneado: ' + pendingCode;
+      vibrate([60,50,60,50,60]);
+    }
+  }
+
+  let tesseractWorkerPromise = null;
+  function getTesseractWorker(){
+    if (!tesseractWorkerPromise){
+      tesseractWorkerPromise = Tesseract.createWorker('eng');
+    }
+    return tesseractWorkerPromise;
+  }
+
+  lerEtiquetaBtn.addEventListener('click', () => {
+    etiquetaFileInput.click();
+  });
+
+  etiquetaFileInput.addEventListener('change', async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    etiquetaFileInput.value = '';
+
+    etiquetaStatus.style.color = 'var(--muted)';
+    etiquetaStatus.textContent = 'lendo etiqueta...';
+    lerEtiquetaBtn.disabled = true;
+
+    try{
+      const resized = await resizeImageFile(file, 1200);
+      const worker = await getTesseractWorker();
+      const { data } = await worker.recognize(resized);
+      const { parada, idEtiqueta } = extrairDadosEtiqueta(data.text || '');
+      aplicarResultadoComparacao(idEtiqueta, parada);
+    }catch(err){
+      etiquetaStatus.style.color = 'var(--bad)';
+      etiquetaStatus.textContent = 'erro ao ler a etiqueta — tente novamente ou digite o ID manualmente abaixo';
+    }finally{
+      lerEtiquetaBtn.disabled = false;
+    }
+  });
+
+  etiquetaManualToggle.addEventListener('click', () => {
+    etiquetaManualBox.style.display = etiquetaManualBox.style.display === 'none' ? 'block' : 'none';
+    if (etiquetaManualBox.style.display === 'block') setTimeout(() => etiquetaManualInput.focus(), 100);
+  });
+
+  etiquetaManualCompare.addEventListener('click', () => {
+    const val = etiquetaManualInput.value.trim();
+    if (!CODE_REGEX.test(val)){
+      etiquetaStatus.style.color = 'var(--bad)';
+      etiquetaStatus.textContent = 'o ID da etiqueta precisa ter exatamente ' + CODE_LENGTH + ' dígitos';
+      return;
+    }
+    // Na entrada manual não temos o "nome" da etiqueta, então a parada
+    // continua precisando ser preenchida por você no campo acima.
+    aplicarResultadoComparacao(val, null);
+  });
 
   welcomeConfirm.addEventListener('click', confirmWelcome);
   welcomeRouteInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmWelcome(); });
