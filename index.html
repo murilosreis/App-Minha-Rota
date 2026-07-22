@@ -90,20 +90,6 @@
     box-shadow:var(--shadow); padding:10px; border:1px solid var(--line);
   }
 
-  /* Seletor de modo (QR / Código de barras) */
-  .mode-toggle{
-    display:flex; background:var(--surface-2); border-radius:100px;
-    padding:4px; margin-bottom:10px;
-  }
-  .mode-btn{
-    flex:1; border:none; background:none; padding:10px 8px; border-radius:100px;
-    font-size:12px; font-weight:700; color:var(--muted); font-family:var(--font-body);
-    cursor:pointer; transition: background .15s, color .15s;
-  }
-  .mode-btn.active{
-    background:var(--accent); color:#fff; box-shadow:0 4px 10px -3px rgba(79,93,255,0.5);
-  }
-
   .viewfinder{
     position:relative; width:100%; aspect-ratio:1/1;
     background:#0D0F1A; border-radius:14px; overflow:hidden;
@@ -409,10 +395,6 @@
   </div>
 
   <div class="cam-card">
-    <div class="mode-toggle" id="modeToggle">
-      <button class="mode-btn active" data-mode="barcode">Código de Barras</button>
-      <button class="mode-btn" data-mode="qr">QR Code</button>
-    </div>
     <div class="viewfinder idle" id="viewfinder">
       <video id="video" playsinline muted></video>
       <div class="frame-overlay">
@@ -467,27 +449,11 @@
     <div class="handle"></div>
     <div class="status-pill">✓ ID válido</div>
     <div class="code-display" id="modalCode">—</div>
-
-    <div class="field-row">
-      <button class="btn btn-ghost" id="lerEtiquetaBtn" style="width:100%;">📷 Ler etiqueta física</button>
-      <input type="file" id="etiquetaFileInput" accept="image/*" capture="environment" style="display:none;">
-    </div>
-    <div class="warn" id="etiquetaStatus" style="min-height:auto; margin-bottom:10px;"></div>
-
     <div class="field-row">
       <label for="paradaInput">Número da parada</label>
       <input type="text" inputmode="decimal" id="paradaInput" placeholder="ex: 54 ou 34.1" autocomplete="off">
     </div>
     <div class="warn" id="modalWarn"></div>
-
-    <div class="manual-entry-row" id="etiquetaManualRow" style="margin-top:-6px; margin-bottom:14px;">
-      <button id="etiquetaManualToggle">Etiqueta não foi lida? Digite o ID dela manualmente</button>
-    </div>
-    <div id="etiquetaManualBox" style="display:none; margin:-6px 0 14px;">
-      <input type="text" inputmode="numeric" id="etiquetaManualInput" placeholder="ID da etiqueta (11 dígitos)" autocomplete="off" style="width:100%; font-family:var(--font-display); font-size:16px; font-weight:700; text-align:center; background:var(--surface-2); border:2px solid transparent; border-radius:var(--radius-sm); color:var(--ink); padding:12px; margin-bottom:8px;">
-      <button class="btn btn-ghost" id="etiquetaManualCompare" style="width:100%;">Comparar com o ID escaneado</button>
-    </div>
-
     <div class="modal-actions">
       <button class="btn btn-ghost" id="modalCancel" style="flex:1;">Descartar</button>
       <button class="btn btn-primary" id="modalConfirm" style="flex:2;">Confirmar parada</button>
@@ -598,7 +564,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -651,7 +616,6 @@
   const clearBtn = document.getElementById('clearBtn');
   const shareBtn = document.getElementById('shareBtn');
   const toast = document.getElementById('toast');
-  const modeToggle = document.getElementById('modeToggle');
 
   const summaryBtn = document.getElementById('summaryBtn');
   const summaryBackdrop = document.getElementById('summaryBackdrop');
@@ -664,14 +628,6 @@
   const modalWarn = document.getElementById('modalWarn');
   const modalCancel = document.getElementById('modalCancel');
   const modalConfirm = document.getElementById('modalConfirm');
-
-  const lerEtiquetaBtn = document.getElementById('lerEtiquetaBtn');
-  const etiquetaFileInput = document.getElementById('etiquetaFileInput');
-  const etiquetaStatus = document.getElementById('etiquetaStatus');
-  const etiquetaManualToggle = document.getElementById('etiquetaManualToggle');
-  const etiquetaManualBox = document.getElementById('etiquetaManualBox');
-  const etiquetaManualInput = document.getElementById('etiquetaManualInput');
-  const etiquetaManualCompare = document.getElementById('etiquetaManualCompare');
 
   const manualCodeBtn = document.getElementById('manualCodeBtn');
   const manualCodeBackdrop = document.getElementById('manualCodeBackdrop');
@@ -693,11 +649,6 @@
   let lastRawSeen = null;
   let lastRawSeenAt = 0;
   let pendingCode = null;
-  let scanMode = 'barcode'; // 'qr' ou 'barcode'
-
-  // Controla a conferência da etiqueta física: null = ainda não conferida,
-  // true = ID da etiqueta bate com o código escaneado, false = não bate (bloqueia a confirmação)
-  let etiquetaConferida = null;
 
   let entries = []; // {codigo, parada}
 
@@ -714,7 +665,18 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw){
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) entries = parsed;
+        if (Array.isArray(parsed)){
+          // Blindagem: remove qualquer entrada corrompida (codigo nulo,
+          // vazio, ou que não seja um ID de 11 dígitos válido) que possa
+          // ter ficado salva de uma versão antiga do app.
+          const limpo = parsed.filter(e => e && typeof e.codigo === 'string' && CODE_REGEX.test(e.codigo));
+          if (limpo.length !== parsed.length){
+            entries = limpo;
+            saveEntries();
+          } else {
+            entries = limpo;
+          }
+        }
       }
     }catch(e){ /* ignora dado corrompido */ }
   }
@@ -1038,23 +1000,6 @@
 
   function vibrate(pattern){ if (navigator.vibrate) navigator.vibrate(pattern || 80); }
 
-  function setMode(mode){
-    scanMode = mode;
-    modeToggle.querySelectorAll('.mode-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
-    });
-    lastRawSeen = null; // permite reler algo que tinha sido ignorado no outro modo
-    if (mode === 'barcode' && !usingNativeDetector && !zxingReady){
-      showToast('Este navegador não tem suporte a leitura de código de barras', 'bad');
-    }
-  }
-
-  modeToggle.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('.mode-btn');
-    if (!btn) return;
-    setMode(btn.getAttribute('data-mode'));
-  });
-
   async function start(){
     permNote.classList.remove('show');
     permNote.textContent = '';
@@ -1126,25 +1071,30 @@
 
         let raw = null;
 
-        if (scanMode === 'qr'){
-          if (window.jsQR){
-            const imageData = ctx.getImageData(0, 0, w, h);
-            const qr = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
-            if (qr && qr.data) raw = qr.data;
-          }
-        } else {
-          if (usingNativeDetector && barcodeDetector){
-            try{
-              const bitmap = await createImageBitmap(canvas);
-              const results = await barcodeDetector.detect(bitmap);
-              if (results && results.length > 0){ raw = results[0].rawValue; }
-            }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
-          } else if (zxingReady && zxingReader){
-            try{
-              const result = zxingReader.decodeFromCanvas(canvas);
-              if (result){ raw = result.getText ? result.getText() : result.text; }
-            }catch(e){ /* nenhum código encontrado neste quadro — normal, tenta de novo */ }
-          }
+        // 1) Tenta QR primeiro (jsQR é rápido e dedicado só a QR Code)
+        if (window.jsQR){
+          const imageData = ctx.getImageData(0, 0, w, h);
+          const qr = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+          if (qr && qr.data) raw = qr.data;
+        }
+
+        // 2) Se não achou QR, tenta o leitor nativo do navegador (cobre
+        // código de barras e, em alguns navegadores, QR também)
+        if (!raw && usingNativeDetector && barcodeDetector){
+          try{
+            const bitmap = await createImageBitmap(canvas);
+            const results = await barcodeDetector.detect(bitmap);
+            if (results && results.length > 0){ raw = results[0].rawValue; }
+          }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
+        }
+
+        // 3) Reforço em JS puro (ZXing) pra código de barras em navegadores
+        // sem suporte nativo (ex: Safari/iOS, Firefox)
+        if (!raw && !usingNativeDetector && zxingReady && zxingReader){
+          try{
+            const result = zxingReader.decodeFromCanvas(canvas);
+            if (result){ raw = result.getText ? result.getText() : result.text; }
+          }catch(e){ /* nenhum código encontrado neste quadro — normal, tenta de novo */ }
         }
 
         if (raw) handleRaw(raw);
@@ -1173,7 +1123,7 @@
     text = text.replace(/^\[[^\]]*\]\s*/, ''); // remove prefixo tipo "[QR] " se existir
     try{
       const obj = JSON.parse(text);
-      if (obj && typeof obj.id !== 'undefined'){
+      if (obj && obj.id !== undefined && obj.id !== null){
         return String(obj.id).trim();
       }
     }catch(e){ /* não é JSON — segue com o texto puro */ }
@@ -1214,19 +1164,10 @@
     openModal(cleaned);
   }
 
-  function resetEtiquetaCheck(){
-    etiquetaConferida = null;
-    etiquetaStatus.textContent = '';
-    etiquetaStatus.style.color = '';
-    etiquetaManualBox.style.display = 'none';
-    etiquetaManualInput.value = '';
-  }
-
   function openModal(code){
     modalCode.textContent = code;
     paradaInput.value = '';
     modalWarn.textContent = '';
-    resetEtiquetaCheck();
     const existing = entries.find(e => e.codigo === code);
     if (existing){
       modalWarn.textContent = 'já vinculado à parada ' + existing.parada + ' — confirmar irá substituir';
@@ -1238,24 +1179,28 @@
   function closeModal(resume){
     modalBackdrop.classList.remove('show');
     pendingCode = null;
-    resetEtiquetaCheck();
     if (resume !== false){
       setTimeout(() => { scanningPaused = false; }, 400);
     }
   }
 
   function confirmModal(){
-    if (etiquetaConferida === false){
-      modalWarn.textContent = 'os IDs não coincidem — confira a etiqueta física antes de continuar';
+    const code = pendingCode;
+
+    // Blindagem: se por qualquer motivo o ID desta leitura não for mais
+    // válido (ex: nulo, vazio, corrompido) na hora de confirmar, recusa
+    // salvar e pede pra escanear de novo, em vez de gravar lixo na lista.
+    if (!code || typeof code !== 'string' || !CODE_REGEX.test(code)){
+      modalWarn.textContent = 'O ID desta leitura ficou inválido. Feche esta janela e escaneie novamente.';
       return;
     }
+
     const val = paradaInput.value.trim().replace(',', '.');
     if (val === '' || !/^\d+(\.\d+)?$/.test(val)){
       modalWarn.textContent = 'informe um número de parada válido (ex: 34 ou 34.1)';
       return;
     }
     const paradaNum = parseFloat(val);
-    const code = pendingCode;
 
     const existingIdx = entries.findIndex(e => e.codigo === code);
     if (existingIdx >= 0){
@@ -1529,149 +1474,6 @@
   manualCodeCancel.addEventListener('click', closeManualCodeModal);
   manualCodeConfirm.addEventListener('click', confirmManualCode);
   manualCodeInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmManualCode(); });
-
-  // ---- Leitura da etiqueta física (OCR) e comparação com o ID escaneado ----
-
-  // Reduz a foto antes de mandar pro OCR: fotos de câmera em alta resolução
-  // deixam o Tesseract mais lento e não trazem ganho de precisão proporcional.
-  function resizeImageFile(file, maxDim){
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          let { width, height } = img;
-          if (width > height && width > maxDim){
-            height = Math.round(height * (maxDim / width));
-            width = maxDim;
-          } else if (height >= width && height > maxDim){
-            width = Math.round(width * (maxDim / height));
-            height = maxDim;
-          }
-          const c = document.createElement('canvas');
-          c.width = width; c.height = height;
-          c.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(c.toDataURL('image/jpeg', 0.9));
-        };
-        img.onerror = () => reject(new Error('falha ao processar a imagem'));
-        img.src = reader.result;
-      };
-      reader.onerror = () => reject(new Error('falha ao ler o arquivo'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // Extrai o "nome" (ex: BM-69), o número da parada (o que vem depois do
-  // último traço, ex: 69) e o ID de 11 dígitos a partir do texto bruto lido.
-  function extrairDadosEtiqueta(textoLido){
-    const matchNome = textoLido.match(/ETIQUETA\s*#?\s*([\w-]+)/i);
-    const nome = matchNome ? matchNome[1] : null;
-
-    let parada = null;
-    if (nome){
-      const partes = nome.split('-');
-      const ultimaParte = partes[partes.length - 1];
-      const numeros = ultimaParte.match(/\d+/);
-      if (numeros) parada = parseFloat(numeros[0]);
-    }
-
-    const janelaAposId = textoLido.match(/ID\s*:?\s*([0-9A-Za-z\s\-.]{0,25})/i);
-    const somenteDigitos = janelaAposId ? janelaAposId[1].replace(/\D/g, '') : '';
-    const idEtiqueta = somenteDigitos.length >= CODE_LENGTH ? somenteDigitos.slice(0, CODE_LENGTH) : null;
-
-    return { nome, parada, idEtiqueta };
-  }
-
-  function aplicarResultadoComparacao(idEtiqueta, parada){
-    if (!idEtiqueta){
-      etiquetaConferida = null;
-      etiquetaStatus.style.color = 'var(--amber)';
-      etiquetaStatus.textContent = 'não consegui identificar o ID na etiqueta — tente de novo com mais luz, ou digite manualmente abaixo';
-      return;
-    }
-
-    if (idEtiqueta === pendingCode){
-      etiquetaConferida = true;
-      etiquetaStatus.style.color = 'var(--good)';
-      etiquetaStatus.textContent = '✓ etiqueta confere com o ID escaneado' + (parada !== null ? (' — parada ' + parada + ' preenchida') : '');
-      if (parada !== null) paradaInput.value = String(parada);
-      modalWarn.textContent = '';
-    } else {
-      etiquetaConferida = false;
-      etiquetaStatus.style.color = 'var(--bad)';
-      etiquetaStatus.textContent = '✗ os IDs não coincidem — etiqueta: ' + idEtiqueta + ' / escaneado: ' + pendingCode;
-      vibrate([60,50,60,50,60]);
-    }
-  }
-
-  let tesseractWorkerPromise = null;
-  function getTesseractWorker(){
-    if (!tesseractWorkerPromise){
-      tesseractWorkerPromise = Tesseract.createWorker('eng');
-    }
-    return tesseractWorkerPromise;
-  }
-
-  lerEtiquetaBtn.addEventListener('click', () => {
-    // Se o site estiver rodando dentro do app Android nativo (WebView com a
-    // ponte JS instalada), usa a câmera nativa + ML Kit, que é muito mais
-    // precisa. Caso contrário (navegador comum), cai no fluxo por foto + Tesseract.
-    if (window.AndroidEtiqueta && window.AndroidEtiqueta.lerEtiqueta){
-      etiquetaStatus.style.color = 'var(--muted)';
-      etiquetaStatus.textContent = 'abrindo câmera do app...';
-      window.AndroidEtiqueta.lerEtiqueta();
-    } else {
-      etiquetaFileInput.click();
-    }
-  });
-
-  // Chamado pelo app Android nativo (via ponte JS) depois de ler a etiqueta
-  // com a câmera embutida. parada pode vir como número ou null; idEtiqueta
-  // pode vir como string de 11 dígitos ou null se não foi identificado.
-  window.onEtiquetaLida = function(nome, parada, idEtiqueta){
-    const paradaNum = (parada === null || parada === undefined || parada === '') ? null : Number(parada);
-    aplicarResultadoComparacao(idEtiqueta || null, (paradaNum !== null && !isNaN(paradaNum)) ? paradaNum : null);
-  };
-
-  etiquetaFileInput.addEventListener('change', async (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    etiquetaFileInput.value = '';
-
-    etiquetaStatus.style.color = 'var(--muted)';
-    etiquetaStatus.textContent = 'lendo etiqueta...';
-    lerEtiquetaBtn.disabled = true;
-
-    try{
-      const resized = await resizeImageFile(file, 1200);
-      const worker = await getTesseractWorker();
-      const { data } = await worker.recognize(resized);
-      const { parada, idEtiqueta } = extrairDadosEtiqueta(data.text || '');
-      aplicarResultadoComparacao(idEtiqueta, parada);
-    }catch(err){
-      etiquetaStatus.style.color = 'var(--bad)';
-      etiquetaStatus.textContent = 'erro ao ler a etiqueta — tente novamente ou digite o ID manualmente abaixo';
-    }finally{
-      lerEtiquetaBtn.disabled = false;
-    }
-  });
-
-  etiquetaManualToggle.addEventListener('click', () => {
-    etiquetaManualBox.style.display = etiquetaManualBox.style.display === 'none' ? 'block' : 'none';
-    if (etiquetaManualBox.style.display === 'block') setTimeout(() => etiquetaManualInput.focus(), 100);
-  });
-
-  etiquetaManualCompare.addEventListener('click', () => {
-    const val = etiquetaManualInput.value.trim();
-    if (!CODE_REGEX.test(val)){
-      etiquetaStatus.style.color = 'var(--bad)';
-      etiquetaStatus.textContent = 'o ID da etiqueta precisa ter exatamente ' + CODE_LENGTH + ' dígitos';
-      return;
-    }
-    // Na entrada manual não temos o "nome" da etiqueta, então a parada
-    // continua precisando ser preenchida por você no campo acima.
-    aplicarResultadoComparacao(val, null);
-  });
 
   welcomeConfirm.addEventListener('click', confirmWelcome);
   welcomeRouteInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmWelcome(); });
