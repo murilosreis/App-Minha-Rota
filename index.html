@@ -339,21 +339,28 @@
   .license-bar.urgent{ background:var(--bad-soft); color:var(--bad); border-color:transparent; }
   .license-bar.urgent b{ color:var(--bad); }
 
-  .update-banner{
-    position:fixed; left:16px; right:16px; bottom:20px; z-index:70;
-    max-width:488px; margin:0 auto;
-    background:var(--ink); color:#fff; border-radius:14px;
-    padding:14px 16px; box-shadow:0 14px 30px -8px rgba(0,0,0,0.5);
-    display:none; align-items:center; justify-content:space-between; gap:12px;
-    animation: slideUpBanner 0.3s cubic-bezier(.2,.8,.3,1);
+  .update-modal-backdrop{
+    position:fixed; inset:0; background:rgba(23,27,46,0.55); backdrop-filter: blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:70; padding:24px;
   }
-  .update-banner.show{ display:flex; }
-  @keyframes slideUpBanner{ from{ transform:translateY(30px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
-  .update-banner-text{ font-size:12.5px; font-weight:600; line-height:1.4; }
-  .update-banner button{
-    flex-shrink:0; background:var(--accent); color:#fff; font-weight:700;
-    font-size:12.5px; padding:9px 16px; border-radius:100px;
+  .update-modal-backdrop.show{ display:flex; }
+  .update-modal{
+    width:100%; max-width:340px; background:var(--surface); border-radius:20px;
+    padding:28px 24px 24px; text-align:center; box-shadow:0 20px 40px -10px rgba(0,0,0,0.4);
+    animation: popIn 0.22s cubic-bezier(.2,.8,.3,1);
   }
+  @keyframes popIn{ from{ transform:scale(0.92); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .update-modal .icon{ font-size:34px; margin-bottom:10px; }
+  .update-modal-title{
+    font-family:var(--font-display); font-size:16px; font-weight:700; color:var(--ink);
+    margin:0 0 20px;
+  }
+  .update-modal button{
+    width:100%; background:var(--accent); color:#fff; font-weight:700;
+    font-size:13.5px; padding:14px; border-radius:100px;
+    box-shadow:0 8px 18px -6px rgba(79,93,255,0.55);
+  }
+  .update-modal button:disabled{ opacity:0.6; }
 
   /* Trava a tela em modo retrato de verdade: quando o celular fica na
      horizontal, giramos o conteúdo de volta, então o app continua
@@ -578,9 +585,12 @@
   </div>
 </div>
 
-<div class="update-banner" id="updateBanner">
-  <span class="update-banner-text">🔄 Há uma nova atualização disponível</span>
-  <button id="updateBtn">Atualizar</button>
+<div class="update-modal-backdrop" id="updateBanner">
+  <div class="update-modal">
+    <div class="icon">🔄</div>
+    <p class="update-modal-title">Atualização disponível</p>
+    <button id="updateBtn">Atualizar</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1519,6 +1529,13 @@
   const updateBanner = document.getElementById('updateBanner');
   const updateBtn = document.getElementById('updateBtn');
   let waitingWorker = null;
+  let jaRecarregou = false;
+
+  function recarregarUmaVez(){
+    if (jaRecarregou) return;
+    jaRecarregou = true;
+    window.location.reload();
+  }
 
   function showUpdateBanner(worker){
     waitingWorker = worker;
@@ -1526,10 +1543,19 @@
   }
 
   updateBtn.addEventListener('click', () => {
-    if (!waitingWorker) return;
+    if (!waitingWorker){
+      // não há um worker novo à espera (situação inesperada) — recarrega
+      // mesmo assim, pode ser suficiente pra pegar a versão nova.
+      recarregarUmaVez();
+      return;
+    }
     updateBtn.disabled = true;
     updateBtn.textContent = 'Atualizando...';
     waitingWorker.postMessage('SKIP_WAITING');
+    // Rede de segurança: se o navegador não avisar a troca de controle em
+    // até 4 segundos, recarrega de qualquer jeito — o botão nunca fica
+    // travado esperando pra sempre.
+    setTimeout(recarregarUmaVez, 4000);
   });
 
   if ('serviceWorker' in navigator){
@@ -1559,12 +1585,7 @@
 
       // Quando o novo service worker assume o controle, recarrega a
       // página uma única vez pra aplicar a versão nova.
-      let jaRecarregou = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (jaRecarregou) return;
-        jaRecarregou = true;
-        window.location.reload();
-      });
+      navigator.serviceWorker.addEventListener('controllerchange', recarregarUmaVez);
     });
   }
 })();
