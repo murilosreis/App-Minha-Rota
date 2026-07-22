@@ -5,7 +5,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
+  // Não chama mais self.skipWaiting() aqui de propósito: assim, quando
+  // sobe uma versão nova, ela fica "esperando" até o usuário confirmar
+  // no botão "Atualizar" na tela, em vez de trocar sozinha por baixo dos panos.
 });
 
 self.addEventListener('activate', (event) => {
@@ -15,6 +17,14 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Permite que a página peça pro service worker novo assumir agora
+// (disparado quando o usuário toca em "Atualizar").
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING'){
+    self.skipWaiting();
+  }
 });
 
 // Estratégia: tenta a rede primeiro, ignorando qualquer cache HTTP do

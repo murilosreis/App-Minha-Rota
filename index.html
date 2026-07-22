@@ -339,6 +339,22 @@
   .license-bar.urgent{ background:var(--bad-soft); color:var(--bad); border-color:transparent; }
   .license-bar.urgent b{ color:var(--bad); }
 
+  .update-banner{
+    position:fixed; left:16px; right:16px; bottom:20px; z-index:70;
+    max-width:488px; margin:0 auto;
+    background:var(--ink); color:#fff; border-radius:14px;
+    padding:14px 16px; box-shadow:0 14px 30px -8px rgba(0,0,0,0.5);
+    display:none; align-items:center; justify-content:space-between; gap:12px;
+    animation: slideUpBanner 0.3s cubic-bezier(.2,.8,.3,1);
+  }
+  .update-banner.show{ display:flex; }
+  @keyframes slideUpBanner{ from{ transform:translateY(30px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+  .update-banner-text{ font-size:12.5px; font-weight:600; line-height:1.4; }
+  .update-banner button{
+    flex-shrink:0; background:var(--accent); color:#fff; font-weight:700;
+    font-size:12.5px; padding:9px 16px; border-radius:100px;
+  }
+
   /* Trava a tela em modo retrato de verdade: quando o celular fica na
      horizontal, giramos o conteúdo de volta, então o app continua
      aparecendo em pé, ocupando a tela toda, sem mensagem de aviso. */
@@ -560,6 +576,11 @@
       <button class="btn btn-ghost" id="summaryClose" style="flex:1;">Fechar</button>
     </div>
   </div>
+</div>
+
+<div class="update-banner" id="updateBanner">
+  <span class="update-banner-text">🔄 Há uma nova atualização disponível</span>
+  <button id="updateBtn">Atualizar</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1494,9 +1515,56 @@
 
   window.addEventListener('beforeunload', stop);
 
+  // ---- Detecção de nova versão do app (service worker) ----
+  const updateBanner = document.getElementById('updateBanner');
+  const updateBtn = document.getElementById('updateBtn');
+  let waitingWorker = null;
+
+  function showUpdateBanner(worker){
+    waitingWorker = worker;
+    updateBanner.classList.add('show');
+  }
+
+  updateBtn.addEventListener('click', () => {
+    if (!waitingWorker) return;
+    updateBtn.disabled = true;
+    updateBtn.textContent = 'Atualizando...';
+    waitingWorker.postMessage('SKIP_WAITING');
+  });
+
   if ('serviceWorker' in navigator){
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => { /* falha ao registrar — segue sem instalação offline */ });
+      navigator.serviceWorker.register('sw.js').then((registration) => {
+        // Se já existir uma versão nova esperando (ex: o usuário já tinha
+        // aberto o app antes de você subir a atualização), mostra na hora.
+        if (registration.waiting){
+          showUpdateBanner(registration.waiting);
+        }
+
+        // Fica de olho em versões novas que chegarem enquanto o app está aberto.
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller){
+              showUpdateBanner(newWorker);
+            }
+          });
+        });
+
+        // Checa por atualização a cada 60s enquanto o app estiver aberto,
+        // sem precisar fechar e reabrir.
+        setInterval(() => registration.update(), 60000);
+      }).catch(() => { /* falha ao registrar — segue sem instalação offline */ });
+
+      // Quando o novo service worker assume o controle, recarrega a
+      // página uma única vez pra aplicar a versão nova.
+      let jaRecarregou = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (jaRecarregou) return;
+        jaRecarregou = true;
+        window.location.reload();
+      });
     });
   }
 })();
