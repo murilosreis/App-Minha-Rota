@@ -361,6 +361,13 @@
     box-shadow:0 8px 18px -6px rgba(79,93,255,0.55);
   }
   .update-modal button:disabled{ opacity:0.6; }
+  .install-modal-text{
+    font-size:12.5px; color:var(--muted); line-height:1.5; margin:0 0 20px;
+  }
+  .install-later-btn{
+    background:none !important; color:var(--muted) !important; box-shadow:none !important;
+    margin-top:8px; font-weight:600 !important;
+  }
 
   /* Trava a tela em modo retrato de verdade: quando o celular fica na
      horizontal, giramos o conteúdo de volta, então o app continua
@@ -590,6 +597,18 @@
     <div class="icon">🔄</div>
     <p class="update-modal-title">Atualização disponível</p>
     <button id="updateBtn">Atualizar</button>
+  </div>
+</div>
+
+<div class="update-modal-backdrop" id="installModal">
+  <div class="update-modal">
+    <div class="icon">📲</div>
+    <p class="update-modal-title" id="installModalTitle">Instalar o Minha Rota?</p>
+    <p class="install-modal-text" id="installModalText">
+      Instale o app na tela inicial do seu celular pra abrir mais rápido, em tela cheia, como um app de verdade.
+    </p>
+    <button id="installConfirmBtn">Instalar</button>
+    <button id="installLaterBtn" class="install-later-btn">Agora não</button>
   </div>
 </div>
 
@@ -1524,6 +1543,93 @@
   validateStoredAccess();
 
   window.addEventListener('beforeunload', stop);
+
+  // ---- Prompt de instalação do app (só aparece se NÃO estiver instalado) ----
+  const installModal = document.getElementById('installModal');
+  const installModalTitle = document.getElementById('installModalTitle');
+  const installModalText = document.getElementById('installModalText');
+  const installConfirmBtn = document.getElementById('installConfirmBtn');
+  const installLaterBtn = document.getElementById('installLaterBtn');
+  const INSTALL_DISMISS_KEY = 'minhaRota.instalarDispensadoEm';
+  const INSTALL_DONE_KEY = 'minhaRota.jaInstalado';
+  const DIAS_ESPERA_APOS_DISPENSAR = 7;
+
+  let deferredInstallEvent = null;
+
+  function estaRodandoInstalado(){
+    // Camada 1: o próprio navegador diz que está em modo "app instalado"
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    // Camada 2 (iOS antigo): flag específica do Safari quando aberto via ícone
+    if (window.navigator.standalone === true) return true;
+    // Camada 3: já marcamos anteriormente que essa pessoa instalou
+    try{ if (localStorage.getItem(INSTALL_DONE_KEY) === '1') return true; }catch(e){}
+    return false;
+  }
+
+  function foiDispensadoRecentemente(){
+    try{
+      const dispensadoEm = localStorage.getItem(INSTALL_DISMISS_KEY);
+      if (!dispensadoEm) return false;
+      const diasPassados = (Date.now() - parseInt(dispensadoEm, 10)) / 86400000;
+      return diasPassados < DIAS_ESPERA_APOS_DISPENSAR;
+    }catch(e){ return false; }
+  }
+
+  function marcarComoInstalado(){
+    try{ localStorage.setItem(INSTALL_DONE_KEY, '1'); }catch(e){}
+    installModal.classList.remove('show');
+  }
+
+  function fecharInstallModal(dispensarPorDias){
+    installModal.classList.remove('show');
+    if (dispensarPorDias){
+      try{ localStorage.setItem(INSTALL_DISMISS_KEY, String(Date.now())); }catch(e){}
+    }
+  }
+
+  // Se o navegador já sinaliza suporte à instalação nativa (Android/Chrome)
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    if (estaRodandoInstalado() || foiDispensadoRecentemente()) return;
+    deferredInstallEvent = event;
+    installModalTitle.textContent = 'Instalar o Minha Rota?';
+    installModalText.textContent = 'Instale o app na tela inicial do seu celular pra abrir mais rápido, em tela cheia, como um app de verdade.';
+    installConfirmBtn.style.display = 'block';
+    installModal.classList.add('show');
+  });
+
+  window.addEventListener('appinstalled', marcarComoInstalado);
+
+  installConfirmBtn.addEventListener('click', async () => {
+    if (!deferredInstallEvent) return;
+    installConfirmBtn.disabled = true;
+    deferredInstallEvent.prompt();
+    const escolha = await deferredInstallEvent.userChoice;
+    installConfirmBtn.disabled = false;
+    deferredInstallEvent = null;
+    if (escolha && escolha.outcome === 'accepted'){
+      marcarComoInstalado();
+    } else {
+      fecharInstallModal(true);
+    }
+  });
+
+  installLaterBtn.addEventListener('click', () => fecharInstallModal(true));
+
+  // iOS Safari não dispara beforeinstallprompt — mostramos instrução manual,
+  // só se ainda não estiver instalado e não tiver sido dispensado recentemente.
+  (function checarInstalacaoIOS(){
+    const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const ehSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|edgios/i.test(navigator.userAgent);
+    if (!ehIOS || !ehSafari) return;
+    if (estaRodandoInstalado() || foiDispensadoRecentemente()) return;
+    setTimeout(() => {
+      installModalTitle.textContent = 'Instalar o Minha Rota?';
+      installModalText.textContent = 'Toque no botão de compartilhar 📤 na barra do Safari e depois em "Adicionar à Tela de Início".';
+      installConfirmBtn.style.display = 'none';
+      installModal.classList.add('show');
+    }, 2000);
+  })();
 
   // ---- Detecção de nova versão do app (service worker) ----
   const updateBanner = document.getElementById('updateBanner');
