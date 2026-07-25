@@ -330,14 +330,19 @@
   .toast.good{ background:var(--good); }
   .toast.warn{ background:var(--amber); color:#3A2400; }
 
+  .license-row{ display:flex; align-items:center; gap:8px; margin-bottom:14px; }
   .license-bar{
-    background:var(--surface); border:1px solid var(--line); border-radius:100px;
+    flex:1; background:var(--surface); border:1px solid var(--line); border-radius:100px;
     padding:8px 14px; font-size:11.5px; font-weight:600; color:var(--muted);
-    text-align:center; margin-bottom:14px; box-shadow:var(--shadow);
+    text-align:center; box-shadow:var(--shadow); margin-bottom:0;
   }
   .license-bar b{ color:var(--ink); font-weight:700; }
   .license-bar.urgent{ background:var(--bad-soft); color:var(--bad); border-color:transparent; }
   .license-bar.urgent b{ color:var(--bad); }
+  .renew-btn{
+    flex-shrink:0; background:var(--accent-soft); color:var(--accent); font-weight:700;
+    font-size:11px; padding:9px 12px; border-radius:100px; white-space:nowrap;
+  }
 
   .update-modal-backdrop{
     position:fixed; inset:0; background:rgba(23,27,46,0.55); backdrop-filter: blur(2px);
@@ -420,8 +425,11 @@
     </button>
   </div>
 
-  <div class="license-bar" id="licenseBar" style="display:none;">
-    Validade da chave: <b id="licenseDate">-</b> <span id="licenseDays"></span>
+  <div class="license-row">
+    <div class="license-bar" id="licenseBar" style="display:none;">
+      Validade da chave: <b id="licenseDate">-</b> <span id="licenseDays"></span>
+    </div>
+    <button class="renew-btn" id="renewPlanBtn">Renovar Plano</button>
   </div>
 
   <div class="cam-card">
@@ -526,6 +534,29 @@
         </div>
         <p class="access-payment-hint">Ao realizar o pagamento, envie o comprovante pelo WhatsApp com o seu Nome.</p>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="renewBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:var(--accent-soft); color:var(--accent);">🔑 renovar plano</div>
+    <div class="code-display" style="font-size:15.5px; font-weight:600;">Realize o pagamento pra continuar usando o app.</div>
+    <div class="access-payment" style="border-top:none; padding-top:0; margin-top:0;">
+      <div class="access-payment-actions">
+        <button class="btn btn-pix" id="renewPixBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" fill="white" stroke="white" stroke-width="0.5" stroke-linejoin="round"/>
+          </svg>
+          Pagar com Pix
+        </button>
+        <button class="btn btn-whats" id="renewWhatsBtn">💬 Falar no WhatsApp</button>
+      </div>
+      <p class="access-payment-hint">Ao realizar o pagamento, envie o comprovante pelo WhatsApp com o seu Nome.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="renewCloseBtn" style="flex:1;">Fechar</button>
     </div>
   </div>
 </div>
@@ -1003,6 +1034,25 @@
     window.open(WHATSAPP_URL, '_blank');
   });
 
+  const renewPlanBtn = document.getElementById('renewPlanBtn');
+  const renewBackdrop = document.getElementById('renewBackdrop');
+  const renewCloseBtn = document.getElementById('renewCloseBtn');
+  const renewPixBtn = document.getElementById('renewPixBtn');
+  const renewWhatsBtn = document.getElementById('renewWhatsBtn');
+
+  renewPlanBtn.addEventListener('click', () => {
+    renewBackdrop.classList.add('show');
+  });
+  renewCloseBtn.addEventListener('click', () => {
+    renewBackdrop.classList.remove('show');
+  });
+  renewPixBtn.addEventListener('click', () => {
+    pixBackdrop.classList.add('show');
+  });
+  renewWhatsBtn.addEventListener('click', () => {
+    window.open(WHATSAPP_URL, '_blank');
+  });
+
   let barcodeDetector = null;
   let usingNativeDetector = false;
   if ('BarcodeDetector' in window) {
@@ -1074,11 +1124,28 @@
 
     try{
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 960 } },
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1440 },
+          advanced: [{ focusMode: 'continuous' }]
+        },
         audio: false
       });
       video.srcObject = stream;
       await video.play();
+
+      // Tenta forçar foco contínuo caso o navegador suporte esse controle
+      // (ajuda bastante em etiquetas amassadas/em ângulo, que exigem
+      // reajuste de foco constante).
+      try{
+        const [track] = stream.getVideoTracks();
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if (capabilities.focusMode && capabilities.focusMode.includes('continuous')){
+          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        }
+      }catch(e){ /* controle de foco não suportado neste aparelho — segue normalmente */ }
+
       viewfinder.classList.remove('idle');
       startBtn.disabled = true;
       stopBtn.disabled = false;
@@ -1114,8 +1181,17 @@
   async function tick(){
     if (!stream) return;
     if (!scanningPaused && video.readyState === video.HAVE_ENOUGH_DATA){
-      const w = video.videoWidth, h = video.videoHeight;
-      if (w && h){
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (vw && vh){
+        // Analisa numa resolução menor que a da câmera (mais rápido a cada
+        // tentativa = mais tentativas por segundo), mantendo a proporção.
+        // A imagem que aparece na tela pro usuário continua na qualidade
+        // original — só a cópia usada pra detecção é reduzida.
+        const MAX_DIM = 900;
+        const escala = Math.min(1, MAX_DIM / Math.max(vw, vh));
+        const w = Math.round(vw * escala);
+        const h = Math.round(vh * escala);
+
         canvas.width = w; canvas.height = h;
         ctx.drawImage(video, 0, 0, w, h);
 
