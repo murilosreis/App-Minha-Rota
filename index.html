@@ -217,7 +217,7 @@
   .icon-btn{
     background:var(--surface-2); border-radius:100px; width:28px; height:28px;
     font-size:13px; display:flex; align-items:center; justify-content:center; padding:0;
-    flex-shrink:0;
+    flex-shrink:0; text-decoration:none; cursor:pointer;
   }
   .stop-row.highlight-found .stop-card{
     animation: highlightPulse 1.8s ease-in-out 2;
@@ -364,6 +364,10 @@
   .access-payment-hint{
     font-size:11px; color:var(--muted); font-weight:500; margin:12px 0 0; line-height:1.5;
   }
+  .manual-link{
+    display:block; text-align:center; margin-top:14px; font-size:12px; font-weight:700;
+    color:var(--accent); text-decoration:underline; text-underline-offset:2px;
+  }
 
   .pix-code-box{
     background:var(--surface-2); border-radius:var(--radius-sm); padding:12px;
@@ -482,6 +486,7 @@
     <div class="license-bar" id="licenseBar" style="display:none;">
       Validade da chave: <b id="licenseDate">-</b> <span id="licenseDays"></span>
     </div>
+    <a href="manual.pdf" target="_blank" class="icon-btn" title="Manual de uso">📖</a>
     <button class="renew-btn" id="renewPlanBtn">Renovar Plano</button>
   </div>
 
@@ -591,6 +596,7 @@
           <button class="btn btn-whats" id="whatsBtn">💬 Falar no WhatsApp</button>
         </div>
         <p class="access-payment-hint">Ao realizar o pagamento, envie o comprovante pelo WhatsApp com o seu Nome.</p>
+        <a href="manual.pdf" target="_blank" class="manual-link">📖 Ver manual de uso do app</a>
       </div>
     </div>
   </div>
@@ -1186,9 +1192,39 @@
 
   function vibrate(pattern){ if (navigator.vibrate) navigator.vibrate(pattern || 80); }
 
+  // Bipe de scanner sintetizado na hora (Web Audio API) — não depende de
+  // nenhum arquivo de som externo.
+  let audioCtx = null;
+  function tocarBipe(frequencia, duracaoMs){
+    try{
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = frequencia || 2700;
+      gain.gain.value = 0.18;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const agora = audioCtx.currentTime;
+      const dur = (duracaoMs || 110) / 1000;
+      gain.gain.setValueAtTime(0.18, agora);
+      gain.gain.exponentialRampToValueAtTime(0.0001, agora + dur);
+      osc.start(agora);
+      osc.stop(agora + dur);
+    }catch(e){ /* áudio indisponível neste navegador — segue sem som */ }
+  }
+
   async function start(){
     permNote.classList.remove('show');
     permNote.textContent = '';
+
+    // Desbloqueia o áudio aqui dentro (gesto real de toque do usuário),
+    // pra garantir que o bipe funcione depois, sem restrição do navegador.
+    try{
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }catch(e){ /* áudio indisponível — segue sem som */ }
 
     try{
       if (screen.orientation && screen.orientation.lock){
@@ -1353,6 +1389,7 @@
 
     if (!CODE_REGEX.test(cleaned)){
       vibrate([40,60,40]);
+      tocarBipe(300, 180);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
       showScanAlert('bad', 'Pacote inválido', 'precisa ter ' + CODE_LENGTH + ' dígitos numéricos');
@@ -1363,6 +1400,7 @@
     if (buscandoPacote){
       buscandoPacote = false;
       vibrate(90);
+      tocarBipe();
       resolverBuscaPorCodigo(cleaned);
       return;
     }
@@ -1370,11 +1408,13 @@
     const existing = entries.find(e => e.codigo === cleaned);
     if (existing){
       vibrate([60,50,60,50,60]);
+      tocarBipe(1200, 160);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
       showScanAlert('warn', 'Pacote duplicado', 'já vinculado à parada ' + existing.parada);
     } else {
       vibrate(90);
+      tocarBipe();
       viewfinder.classList.add('flash-ok');
       setTimeout(() => viewfinder.classList.remove('flash-ok'), 400);
     }
