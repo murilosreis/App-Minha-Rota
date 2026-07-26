@@ -198,6 +198,17 @@
     font-family:var(--font-display); font-size:14.5px; font-weight:700; margin:0;
   }
   .route-head-actions{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
+  .icon-btn{
+    background:var(--surface-2); border-radius:100px; width:28px; height:28px;
+    font-size:13px; display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .stop-row.highlight-found .stop-card{
+    animation: highlightPulse 1.8s ease-in-out 2;
+  }
+  @keyframes highlightPulse{
+    0%, 100%{ box-shadow:var(--shadow); }
+    50%{ box-shadow: 0 0 0 4px var(--accent); }
+  }
   .link-btn{
     background:none; color:var(--accent); font-size:12px; font-weight:700;
     padding:4px 2px; text-decoration:underline; text-underline-offset:2px;
@@ -229,8 +240,13 @@
   }
   .stop-card .code{
     font-family:var(--font-body); font-size:13.5px; font-weight:600; color:var(--ink);
-    word-break:break-all; line-height:1.4;
+    line-height:1.4;
   }
+  .stop-card .code .copy-code{
+    word-break:break-all; cursor:pointer; border-bottom:1.5px dashed currentColor;
+    padding-bottom:1px; -webkit-tap-highlight-color: transparent;
+  }
+  .stop-card .code .copy-code:active{ opacity:0.6; }
   .stop-card .code small{ display:block; font-size:10.5px; color:var(--muted); font-weight:500; margin-top:1px; }
   .stop-card .del{
     flex-shrink:0; background:var(--bad-soft); color:var(--bad); font-size:10.5px;
@@ -288,6 +304,22 @@
   .modal .modal-actions{ display:flex; gap:10px; }
   .modal .modal-actions .btn{ padding:15px; }
   .modal .field-row{ margin-bottom:14px; }
+
+  .photo-btn{
+    width:100%; background:var(--surface-2); color:var(--accent); font-weight:700;
+    font-size:12.5px; border-radius:var(--radius-sm); padding:12px; margin-bottom:14px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .search-results{ max-height:260px; overflow-y:auto; margin-bottom:6px; }
+  .search-result-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 12px; border-radius:var(--radius-sm); background:var(--surface-2);
+    margin-bottom:8px; cursor:pointer; text-align:left;
+  }
+  .search-result-item:active{ opacity:0.7; }
+  .search-result-item .sr-code{ font-size:12.5px; font-weight:600; color:var(--ink); word-break:break-all; }
+  .search-result-item .sr-parada{ font-size:11px; color:var(--muted); font-weight:600; flex-shrink:0; }
+  .search-empty{ font-size:12px; color:var(--muted); text-align:center; padding:10px 0; }
 
   .access-payment{
     margin-top:18px; padding-top:16px; border-top:1px dashed var(--line);
@@ -413,11 +445,11 @@
     <div class="counter-group">
       <div class="counter-chip">
         <span class="dot" id="countNum">0</span>
-        <span class="lbl">IDs <b id="countWord">lidos</b></span>
+        <span class="lbl">Pacotes <b id="countWord">lidos</b></span>
       </div>
       <div class="counter-chip counter-chip-alt">
         <span class="dot dot-alt" id="stopCountNum">0</span>
-        <span class="lbl">paradas</span>
+        <span class="lbl">Paradas</span>
       </div>
     </div>
   </header>
@@ -472,6 +504,7 @@
     <div class="route-head">
       <h2>Sua rota</h2>
       <div class="route-head-actions">
+        <button class="icon-btn" id="searchBtn" title="Buscar pacote">🔍</button>
         <button class="link-btn" id="summaryBtn">Resumo</button>
         <button class="link-btn" id="shareBtn">Compartilhar</button>
         <button class="link-btn link-btn-danger" id="clearBtn">Limpar tudo</button>
@@ -480,7 +513,7 @@
     <div class="route-line" id="listBody">
       <div class="empty-state">
         <div class="icon">📍</div>
-        <p>Nenhuma parada ainda.<br>Escaneie um ID para começar sua rota.</p>
+        <p>Nenhuma parada ainda.<br>Escaneie um pacote para começar sua rota.</p>
       </div>
     </div>
   </div>
@@ -616,6 +649,22 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="searchBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:var(--accent-soft); color:var(--accent);">🔍 buscar pacote</div>
+    <div class="field-row">
+      <label for="searchInput">Número do pacote</label>
+      <input type="text" inputmode="numeric" id="searchInput" placeholder="digite parte ou todo o número" autocomplete="off">
+    </div>
+    <button class="photo-btn" id="searchScanBtn">📷 Escanear para buscar</button>
+    <div id="searchResults" class="search-results"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="searchCloseBtn" style="flex:1;">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="summaryBackdrop">
   <div class="modal">
     <div class="handle"></div>
@@ -707,6 +756,13 @@
   const summaryContent = document.getElementById('summaryContent');
   const summaryClose = document.getElementById('summaryClose');
 
+  const searchBtn = document.getElementById('searchBtn');
+  const searchBackdrop = document.getElementById('searchBackdrop');
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  const searchScanBtn = document.getElementById('searchScanBtn');
+  const searchCloseBtn = document.getElementById('searchCloseBtn');
+
   const modalBackdrop = document.getElementById('modalBackdrop');
   const modalCode = document.getElementById('modalCode');
   const paradaInput = document.getElementById('paradaInput');
@@ -734,6 +790,7 @@
   let lastRawSeen = null;
   let lastRawSeenAt = 0;
   let pendingCode = null;
+  let buscandoPacote = false;
 
   let entries = []; // {codigo, parada}
 
@@ -1235,9 +1292,9 @@
 
   let scanAlertTimer = null;
   function showScanAlert(kind, text, sub){
-    scanAlert.classList.remove('warn');
-    if (kind === 'warn') scanAlert.classList.add('warn');
-    scanAlertIcon.textContent = kind === 'warn' ? '🔁' : '⚠️';
+    scanAlert.classList.remove('warn', 'good');
+    if (kind === 'warn' || kind === 'good') scanAlert.classList.add(kind);
+    scanAlertIcon.textContent = kind === 'good' ? '✓' : (kind === 'warn' ? '🔁' : '⚠️');
     scanAlertText.textContent = text;
     scanAlertSub.textContent = sub || '';
     scanAlert.classList.add('show');
@@ -1272,8 +1329,15 @@
       vibrate([40,60,40]);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
-      showScanAlert('bad', 'ID inválido', 'precisa ter ' + CODE_LENGTH + ' dígitos numéricos');
-      showToast('ID inválido — precisa ter ' + CODE_LENGTH + ' dígitos', 'bad');
+      showScanAlert('bad', 'Pacote inválido', 'precisa ter ' + CODE_LENGTH + ' dígitos numéricos');
+      showToast('Pacote inválido — precisa ter ' + CODE_LENGTH + ' dígitos', 'bad');
+      return;
+    }
+
+    if (buscandoPacote){
+      buscandoPacote = false;
+      vibrate(90);
+      resolverBuscaPorCodigo(cleaned);
       return;
     }
 
@@ -1282,7 +1346,7 @@
       vibrate([60,50,60,50,60]);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
-      showScanAlert('warn', 'ID duplicado', 'já vinculado à parada ' + existing.parada);
+      showScanAlert('warn', 'Pacote duplicado', 'já vinculado à parada ' + existing.parada);
     } else {
       vibrate(90);
       viewfinder.classList.add('flash-ok');
@@ -1358,6 +1422,77 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
+  function destacarEntrada(idx){
+    const row = listBody.querySelector('[data-entry-idx="' + idx + '"]');
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('highlight-found');
+    setTimeout(() => row.classList.remove('highlight-found'), 3600);
+  }
+
+  function renderSearchResults(query){
+    if (query === ''){
+      searchResults.innerHTML = '';
+      return;
+    }
+    const encontrados = [];
+    entries.forEach((e, idx) => {
+      if (e.codigo.includes(query)) encontrados.push({ e, idx });
+    });
+    if (encontrados.length === 0){
+      searchResults.innerHTML = '<div class="search-empty">nenhum pacote encontrado</div>';
+      return;
+    }
+    searchResults.innerHTML = encontrados.map(({ e, idx }) => {
+      const rotulo = Number.isInteger(e.parada) ? ('parada ' + e.parada) : ('etiqueta branca ' + e.parada);
+      return '<div class="search-result-item" data-idx="' + idx + '">' +
+        '<span class="sr-code">' + escapeHtml(e.codigo) + '</span>' +
+        '<span class="sr-parada">' + escapeHtml(rotulo) + '</span></div>';
+    }).join('');
+    searchResults.querySelectorAll('.search-result-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.getAttribute('data-idx'), 10);
+        closeSearchModal();
+        destacarEntrada(idx);
+      });
+    });
+  }
+
+  function openSearchModal(){
+    searchInput.value = '';
+    searchResults.innerHTML = '';
+    searchBackdrop.classList.add('show');
+    setTimeout(() => searchInput.focus(), 150);
+  }
+
+  function closeSearchModal(){
+    searchBackdrop.classList.remove('show');
+  }
+
+  function resolverBuscaPorCodigo(codigo){
+    const idx = entries.findIndex(e => e.codigo === codigo);
+    if (idx === -1){
+      showScanAlert('bad', 'Não encontrado', 'este pacote não está na sua lista');
+      showToast('Pacote não encontrado na lista', 'bad');
+      return;
+    }
+    showScanAlert('warn', 'Pacote encontrado', 'parada ' + entries[idx].parada);
+    showToast('Pacote encontrado — parada ' + entries[idx].parada, 'good');
+    destacarEntrada(idx);
+  }
+
+  searchBtn.addEventListener('click', openSearchModal);
+  searchCloseBtn.addEventListener('click', closeSearchModal);
+  searchInput.addEventListener('input', () => renderSearchResults(searchInput.value.trim()));
+  searchScanBtn.addEventListener('click', async () => {
+    closeSearchModal();
+    if (!stream){
+      await start();
+    }
+    buscandoPacote = true;
+    showToast('Aponte a câmera para o pacote que deseja buscar', 'good', 3000);
+  });
+
   function renderList(){
     countNum.textContent = entries.length;
     countWord.textContent = entries.length === 1 ? 'lido' : 'lidos';
@@ -1366,7 +1501,7 @@
       listBody.innerHTML = `
         <div class="empty-state">
           <div class="icon">📍</div>
-          <p>Nenhuma parada ainda.<br>Escaneie um ID para começar sua rota.</p>
+          <p>Nenhuma parada ainda.<br>Escaneie um pacote para começar sua rota.</p>
         </div>`;
       return;
     }
@@ -1386,10 +1521,11 @@
       const rotulo = ehEtiquetaBranca ? ('etiqueta branca ' + e.parada) : ('parada ' + e.parada);
       const row = document.createElement('div');
       row.className = 'stop-row';
+      row.setAttribute('data-entry-idx', String(idx));
       row.innerHTML = `
         <div class="rail"><div class="stop-badge" style="background:${color}; box-shadow:0 4px 10px -3px ${hexToRgba(color, 0.6)};">${e.parada}</div></div>
         <div class="stop-card" style="background:${bgFraca}; border-color:${hexToRgba(color, 0.35)};">
-          <div class="code">${escapeHtml(e.codigo)}<small>${rotulo}</small></div>
+          <div class="code"><span class="copy-code" data-code="${escapeHtml(e.codigo)}" title="Toque para copiar">${escapeHtml(e.codigo)}</span><small>${rotulo}</small></div>
           <button class="del" data-idx="${idx}">Remover</button>
         </div>
       `;
@@ -1400,17 +1536,24 @@
         listBody.appendChild(divider);
       }
     });
+    listBody.querySelectorAll('.copy-code').forEach(el => {
+      el.addEventListener('click', () => {
+        const codigo = el.getAttribute('data-code');
+        copyToClipboard(codigo);
+        showToast('Pacote copiado: ' + codigo, 'good', 2200);
+      });
+    });
     listBody.querySelectorAll('.del').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
         const entry = entries[idx];
         if (!entry) return;
         const rotulo = Number.isInteger(entry.parada) ? ('parada ' + entry.parada) : ('etiqueta branca ' + entry.parada);
-        if (!confirm('Remover o ID ' + entry.codigo + ' (' + rotulo + ')?')) return;
+        if (!confirm('Remover o pacote ' + entry.codigo + ' (' + rotulo + ')?')) return;
         entries.splice(idx, 1);
         saveEntries();
         renderList();
-        showToast('ID removido', 'good');
+        showToast('Pacote removido', 'good');
       });
     });
   }
@@ -1423,8 +1566,8 @@
 
   function buildShareText(){
     if (entries.length === 0) return '';
-    const qtd = entries.length + ' ID' + (entries.length === 1 ? '' : 's');
-    const titulo = 'IDs da rota' + (currentRoute ? (' ' + currentRoute) : '') + ' - ' + qtd;
+    const qtd = entries.length + ' pacote' + (entries.length === 1 ? '' : 's');
+    const titulo = 'Pacotes da rota' + (currentRoute ? (' ' + currentRoute) : '') + ' - ' + qtd;
     const linhas = entries.map(e => {
       const rotulo = Number.isInteger(e.parada) ? ('Parada ' + e.parada) : ('Etiqueta branca ' + e.parada);
       return rotulo + ': ' + e.codigo;
@@ -1491,18 +1634,18 @@
   function buildSummaryHtml(){
     const s = computeSummary();
     let html = '';
-    html += summaryRow('Total de IDs lidos', s.totalCodigos);
+    html += summaryRow('Total de pacotes lidos', s.totalCodigos);
     html += summaryRow('Total geral de paradas', s.totalGeralParadas,
       'paradas numeradas + etiquetas brancas');
 
     const qtdsOrdenadas = Object.keys(s.gruposPorQuantidade).map(Number).sort((a,b) => a - b);
     qtdsOrdenadas.forEach(qtd => {
       const paradas = s.gruposPorQuantidade[qtd];
-      html += summaryRow('Paradas com ' + qtd + ' IDs', paradas.length,
+      html += summaryRow('Paradas com ' + qtd + ' pacotes', paradas.length,
         paradas.length ? ('paradas: ' + paradas.join(', ')) : '');
     });
 
-    html += summaryRow('Paradas com apenas 1 ID', s.comApenasUm.length,
+    html += summaryRow('Paradas com apenas 1 pacote', s.comApenasUm.length,
       s.comApenasUm.length ? ('paradas: ' + s.comApenasUm.join(', ')) : '');
     html += summaryRow('Etiquetas brancas', s.etiquetasBrancas.length,
       s.etiquetasBrancas.length ? ('etiquetas: ' + s.etiquetasBrancas.join(', ')) : '');
@@ -1514,7 +1657,7 @@
 
   function openSummaryModal(){
     if (entries.length === 0){
-      showToast('Nenhum ID lido ainda', 'bad');
+      showToast('Nenhum pacote lido ainda', 'bad');
       return;
     }
     summaryContent.innerHTML = buildSummaryHtml();
@@ -1527,7 +1670,7 @@
 
   async function shareList(){
     if (entries.length === 0){
-      showToast('Nenhum ID lido ainda', 'bad');
+      showToast('Nenhum pacote lido ainda', 'bad');
       return;
     }
     const texto = buildShareText();
