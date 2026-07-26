@@ -142,6 +142,18 @@
     display:block; font-size:12px; font-weight:600; margin-top:5px; opacity:0.92;
   }
 
+  .search-mode-badge{
+    position:absolute; left:8px; right:8px; bottom:14px; z-index:6;
+    background:rgba(23,27,46,0.88); color:#fff; border-radius:12px;
+    padding:10px 12px; display:none; align-items:center; justify-content:space-between;
+    gap:10px; font-size:11.5px; font-weight:600;
+  }
+  .search-mode-badge.show{ display:flex; }
+  .search-mode-badge button{
+    flex-shrink:0; background:var(--bad); color:#fff; font-weight:700;
+    font-size:10.5px; padding:6px 10px; border-radius:100px;
+  }
+
   .cam-controls{ display:flex; gap:8px; padding:12px 6px 4px; }
   button{ font-family:var(--font-body); border:none; cursor:pointer; }
   .btn{
@@ -488,6 +500,10 @@
         <span class="scan-alert-text" id="scanAlertText">—</span>
         <span class="scan-alert-sub" id="scanAlertSub"></span>
       </div>
+      <div class="search-mode-badge" id="searchModeBadge">
+        <span>🔍 Modo de busca — aponte para o pacote</span>
+        <button id="cancelSearchModeBtn">Cancelar</button>
+      </div>
     </div>
     <div class="cam-controls">
       <button class="btn btn-primary" id="startBtn">
@@ -731,6 +747,8 @@
   const scanAlertIcon = document.getElementById('scanAlertIcon');
   const scanAlertText = document.getElementById('scanAlertText');
   const scanAlertSub = document.getElementById('scanAlertSub');
+  const searchModeBadge = document.getElementById('searchModeBadge');
+  const cancelSearchModeBtn = document.getElementById('cancelSearchModeBtn');
   const routeSubtitle = document.getElementById('routeSubtitle');
 
   const accessBackdrop = document.getElementById('accessBackdrop');
@@ -796,6 +814,8 @@
   let lastRawSeenAt = 0;
   let pendingCode = null;
   let buscandoPacote = false;
+  let cameraJaEstavaAtivaAntesDaBusca = false;
+  let buscaCooldownAte = 0;
 
   let entries = []; // {codigo, parada}
 
@@ -1324,6 +1344,7 @@
 
   function handleRaw(raw){
     const now = Date.now();
+    if (now < buscaCooldownAte) return;
     if (raw === lastRawSeen && (now - lastRawSeenAt) < 2000) return;
     lastRawSeen = raw;
     lastRawSeenAt = now;
@@ -1474,16 +1495,32 @@
     searchBackdrop.classList.remove('show');
   }
 
+  function entrarModoBusca(){
+    buscandoPacote = true;
+    searchModeBadge.classList.add('show');
+  }
+
+  function sairModoBusca(){
+    buscandoPacote = false;
+    searchModeBadge.classList.remove('show');
+    if (!cameraJaEstavaAtivaAntesDaBusca){
+      setTimeout(() => { stop(); }, 900);
+    } else {
+      buscaCooldownAte = Date.now() + 6000;
+    }
+  }
+
   function resolverBuscaPorCodigo(codigo){
     const idx = entries.findIndex(e => e.codigo === codigo);
     if (idx === -1){
       showScanAlert('bad', 'Não encontrado', 'este pacote não está na sua lista');
       showToast('Pacote não encontrado na lista', 'bad');
-      return;
+    } else {
+      showScanAlert('good', 'Pacote encontrado', 'parada ' + entries[idx].parada);
+      showToast('Pacote encontrado — parada ' + entries[idx].parada, 'good');
+      destacarEntrada(idx);
     }
-    showScanAlert('warn', 'Pacote encontrado', 'parada ' + entries[idx].parada);
-    showToast('Pacote encontrado — parada ' + entries[idx].parada, 'good');
-    destacarEntrada(idx);
+    sairModoBusca();
   }
 
   searchBtn.addEventListener('click', openSearchModal);
@@ -1491,11 +1528,16 @@
   searchInput.addEventListener('input', () => renderSearchResults(searchInput.value.trim()));
   searchScanBtn.addEventListener('click', async () => {
     closeSearchModal();
+    cameraJaEstavaAtivaAntesDaBusca = !!stream;
     if (!stream){
       await start();
     }
-    buscandoPacote = true;
+    entrarModoBusca();
     showToast('Aponte a câmera para o pacote que deseja buscar', 'good', 3000);
+  });
+  cancelSearchModeBtn.addEventListener('click', () => {
+    showToast('Busca cancelada', 'good', 1800);
+    sairModoBusca();
   });
 
   function renderList(){
@@ -1714,8 +1756,14 @@
   }
 
   startBtn.addEventListener('click', start);
-  stopBtn.addEventListener('click', stop);
+  stopBtn.addEventListener('click', () => {
+    buscandoPacote = false;
+    searchModeBadge.classList.remove('show');
+    stop();
+  });
   switchBtn.addEventListener('click', async () => {
+    buscandoPacote = false;
+    searchModeBadge.classList.remove('show');
     facingMode = facingMode === 'environment' ? 'user' : 'environment';
     stop();
     await start();
