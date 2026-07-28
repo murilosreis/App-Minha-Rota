@@ -475,7 +475,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v16</span></h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v17</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -2014,20 +2014,27 @@
   let waitingWorker = null;
   let jaRecarregou = false;
 
-  // Lista do que mudou nesta versão — atualizada a cada nova melhoria enviada.
-  const NOVIDADES_VERSAO = [
-    'Leitura de código de barras com mais precisão e alcance a distância',
-  ];
-
   function recarregarUmaVez(){
     if (jaRecarregou) return;
     jaRecarregou = true;
     window.location.reload();
   }
 
-  function showUpdateBanner(worker){
+  async function showUpdateBanner(worker){
     waitingWorker = worker;
-    updateChangelog.innerHTML = NOVIDADES_VERSAO.map(item => '<li>' + item + '</li>').join('');
+    // Busca a lista de novidades direto da rede, ignorando qualquer cache —
+    // isso é essencial: o código desta página ainda é o da versão ANTIGA
+    // (só troca depois que recarregar), então não dá pra usar uma lista
+    // guardada aqui dentro — ela sempre mostraria a novidade da vez
+    // passada, nunca a da atualização atual.
+    try{
+      const resp = await fetch('version.json', { cache: 'no-store' });
+      const data = await resp.json();
+      const itens = Array.isArray(data.novidades) ? data.novidades : [];
+      updateChangelog.innerHTML = itens.map(item => '<li>' + item + '</li>').join('');
+    }catch(e){
+      updateChangelog.innerHTML = '<li>Melhorias e correções gerais.</li>';
+    }
     updateBanner.classList.add('show');
   }
 
