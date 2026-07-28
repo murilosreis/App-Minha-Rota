@@ -65,6 +65,11 @@
     font-family:var(--font-display); font-size:16.5px; font-weight:700;
     margin:0; letter-spacing:-0.01em; line-height:1.1;
   }
+  .version-tag{
+    font-family:var(--font-body); font-size:9.5px; font-weight:700; color:var(--muted);
+    background:var(--surface-2); padding:2px 6px; border-radius:100px; vertical-align:middle;
+    margin-left:2px;
+  }
   .brand-text p{
     margin:2px 0 0; font-size:11.5px; color:var(--muted); font-weight:500;
   }
@@ -470,7 +475,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota</h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v15</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -2008,8 +2013,8 @@
 
   // Lista do que mudou nesta versão — atualizada a cada nova melhoria enviada.
   const NOVIDADES_VERSAO = [
-    'Botão "Editar" na lista, pra corrigir a parada de um pacote sem precisar escanear de novo',
-    'Tela de atualização agora mostra o que mudou',
+    'Corrigido: o botão "Atualizar" às vezes ficava travado na tela sem sair',
+    'Número da versão do app agora aparece no topo, ao lado do nome',
   ];
 
   function recarregarUmaVez(){
@@ -2025,19 +2030,15 @@
   }
 
   updateBtn.addEventListener('click', () => {
-    if (!waitingWorker){
-      // não há um worker novo à espera (situação inesperada) — recarrega
-      // mesmo assim, pode ser suficiente pra pegar a versão nova.
-      recarregarUmaVez();
-      return;
-    }
     updateBtn.disabled = true;
     updateBtn.textContent = 'Atualizando...';
-    waitingWorker.postMessage('SKIP_WAITING');
-    // Rede de segurança: se o navegador não avisar a troca de controle em
-    // até 4 segundos, recarrega de qualquer jeito — o botão nunca fica
-    // travado esperando pra sempre.
-    setTimeout(recarregarUmaVez, 4000);
+    try{
+      if (waitingWorker) waitingWorker.postMessage('SKIP_WAITING');
+    }catch(e){ /* segue mesmo assim */ }
+    // Recarrega logo em seguida, sem esperar nenhum evento do navegador —
+    // como a busca de arquivos já ignora cache antigo, isso já é
+    // suficiente pra pegar a versão nova, e o botão nunca fica travado.
+    setTimeout(recarregarUmaVez, 600);
   });
 
   if ('serviceWorker' in navigator){
