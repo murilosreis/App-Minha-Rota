@@ -475,7 +475,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v15</span></h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v16</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -1342,44 +1342,47 @@
     if (!scanningPaused && video.readyState === video.HAVE_ENOUGH_DATA){
       const vw = video.videoWidth, vh = video.videoHeight;
       if (vw && vh){
-        // Analisa numa resolução menor que a da câmera (mais rápido a cada
-        // tentativa = mais tentativas por segundo), mantendo a proporção.
-        // A imagem que aparece na tela pro usuário continua na qualidade
-        // original — só a cópia usada pra detecção é reduzida.
-        const MAX_DIM = 900;
-        const escala = Math.min(1, MAX_DIM / Math.max(vw, vh));
-        const w = Math.round(vw * escala);
-        const h = Math.round(vh * escala);
-
-        canvas.width = w; canvas.height = h;
-        ctx.drawImage(video, 0, 0, w, h);
-
         let raw = null;
 
-        // 1) Tenta QR primeiro (jsQR é rápido e dedicado só a QR Code)
+        // 1) Tenta QR primeiro, numa resolução reduzida (jsQR é puro
+        // JavaScript e fica bem mais rápido em imagem menor; QR também
+        // costuma ser lido de perto, então isso não prejudica a distância).
+        const MAX_DIM_QR = 900;
+        const escalaQr = Math.min(1, MAX_DIM_QR / Math.max(vw, vh));
+        const wQr = Math.round(vw * escalaQr);
+        const hQr = Math.round(vh * escalaQr);
+        canvas.width = wQr; canvas.height = hQr;
+        ctx.drawImage(video, 0, 0, wQr, hQr);
+
         if (window.jsQR){
-          const imageData = ctx.getImageData(0, 0, w, h);
-          const qr = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+          const imageData = ctx.getImageData(0, 0, wQr, hQr);
+          const qr = jsQR(imageData.data, wQr, hQr, { inversionAttempts: 'attemptBoth' });
           if (qr && qr.data) raw = qr.data;
         }
 
-        // 2) Se não achou QR, tenta o leitor nativo do navegador (cobre
-        // código de barras e, em alguns navegadores, QR também)
-        if (!raw && usingNativeDetector && barcodeDetector){
-          try{
-            const bitmap = await createImageBitmap(canvas);
-            const results = await barcodeDetector.detect(bitmap);
-            if (results && results.length > 0){ raw = results[0].rawValue; }
-          }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
-        }
+        // 2) Se não achou QR, tenta código de barras numa resolução bem
+        // maior — mantém a nitidez das barras finas, o que é essencial
+        // pra ler com precisão e a uma distância maior.
+        if (!raw && (usingNativeDetector || (!usingNativeDetector && zxingReady))){
+          const MAX_DIM_BARCODE = 1600;
+          const escalaBar = Math.min(1, MAX_DIM_BARCODE / Math.max(vw, vh));
+          const wBar = Math.round(vw * escalaBar);
+          const hBar = Math.round(vh * escalaBar);
+          canvas.width = wBar; canvas.height = hBar;
+          ctx.drawImage(video, 0, 0, wBar, hBar);
 
-        // 3) Reforço em JS puro (ZXing) pra código de barras em navegadores
-        // sem suporte nativo (ex: Safari/iOS, Firefox)
-        if (!raw && !usingNativeDetector && zxingReady && zxingReader){
-          try{
-            const result = zxingReader.decodeFromCanvas(canvas);
-            if (result){ raw = result.getText ? result.getText() : result.text; }
-          }catch(e){ /* nenhum código encontrado neste quadro — normal, tenta de novo */ }
+          if (usingNativeDetector && barcodeDetector){
+            try{
+              const bitmap = await createImageBitmap(canvas);
+              const results = await barcodeDetector.detect(bitmap);
+              if (results && results.length > 0){ raw = results[0].rawValue; }
+            }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
+          } else if (zxingReady && zxingReader){
+            try{
+              const result = zxingReader.decodeFromCanvas(canvas);
+              if (result){ raw = result.getText ? result.getText() : result.text; }
+            }catch(e){ /* nenhum código encontrado neste quadro — normal, tenta de novo */ }
+          }
         }
 
         if (raw) handleRaw(raw);
@@ -2013,8 +2016,7 @@
 
   // Lista do que mudou nesta versão — atualizada a cada nova melhoria enviada.
   const NOVIDADES_VERSAO = [
-    'Corrigido: o botão "Atualizar" às vezes ficava travado na tela sem sair',
-    'Número da versão do app agora aparece no topo, ao lado do nome',
+    'Leitura de código de barras com mais precisão e alcance a distância',
   ];
 
   function recarregarUmaVez(){
