@@ -422,6 +422,12 @@
     font-family:var(--font-display); font-size:16px; font-weight:700; color:var(--ink);
     margin:0 0 20px;
   }
+  .update-changelog{
+    text-align:left; margin:0 0 20px; padding:14px 14px 14px 30px; background:var(--surface-2);
+    border-radius:12px; font-size:12px; color:var(--ink); line-height:1.6;
+  }
+  .update-changelog li{ margin-bottom:4px; }
+  .update-changelog li:last-child{ margin-bottom:0; }
   .update-modal button{
     width:100%; background:var(--accent); color:#fff; font-weight:700;
     font-size:13.5px; padding:14px; border-radius:100px;
@@ -712,6 +718,7 @@
   <div class="update-modal">
     <div class="icon">🔄</div>
     <p class="update-modal-title">Atualização disponível</p>
+    <ul class="update-changelog" id="updateChangelog"></ul>
     <button id="updateBtn">Atualizar</button>
   </div>
 </div>
@@ -1995,8 +2002,15 @@
   // ---- Detecção de nova versão do app (service worker) ----
   const updateBanner = document.getElementById('updateBanner');
   const updateBtn = document.getElementById('updateBtn');
+  const updateChangelog = document.getElementById('updateChangelog');
   let waitingWorker = null;
   let jaRecarregou = false;
+
+  // Lista do que mudou nesta versão — atualizada a cada nova melhoria enviada.
+  const NOVIDADES_VERSAO = [
+    'Botão "Editar" na lista, pra corrigir a parada de um pacote sem precisar escanear de novo',
+    'Tela de atualização agora mostra o que mudou',
+  ];
 
   function recarregarUmaVez(){
     if (jaRecarregou) return;
@@ -2006,6 +2020,7 @@
 
   function showUpdateBanner(worker){
     waitingWorker = worker;
+    updateChangelog.innerHTML = NOVIDADES_VERSAO.map(item => '<li>' + item + '</li>').join('');
     updateBanner.classList.add('show');
   }
 
