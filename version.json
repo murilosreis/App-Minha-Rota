@@ -1,9 +1,6 @@
 {
-  "versao": "18",
+  "versao": "19",
   "novidades": [
-    "Corrigida abertura da câmera no Safari (iPhone) que podia falhar",
-    "Tela de instalação no iPhone agora mostra o passo a passo certo do Safari",
-    "Aviso na tela se você tentar escanear com uma rota iniciada em outro dia",
-    "Limpeza automática semanal do cache técnico do app (não afeta sua lista salva)"
+    "Corrigido: o alerta de 'rota de outro dia' não funcionava em rotas que já estavam ativas antes dessa função existir"
   ]
 }

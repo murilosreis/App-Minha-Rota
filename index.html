@@ -484,7 +484,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v18</span></h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v19</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -1988,6 +1988,13 @@
       openWelcomeModal();
     } else {
       welcomeBackdrop.classList.remove('show');
+      // Blindagem: se essa rota já estava ativa antes da funcionalidade de
+      // "alerta de rota de outro dia" existir, ela nunca teve uma data de
+      // início salva — sem isso, o alerta nunca dispararia. Adota hoje como
+      // referência agora, pra já funcionar corretamente a partir de amanhã.
+      let dataInicio = null;
+      try{ dataInicio = localStorage.getItem(ROUTE_START_DATE_KEY); }catch(e){}
+      if (!dataInicio) saveRouteStartDate();
     }
   }
 
