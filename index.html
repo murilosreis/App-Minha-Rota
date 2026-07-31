@@ -294,7 +294,8 @@
 
   /* Modal / bottom sheet */
   .modal-backdrop{
-    position:fixed; inset:0; background:rgba(23,27,46,0.45); backdrop-filter: blur(2px);
+    position:fixed; inset:0; background:rgba(23,27,46,0.45);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
     display:none; align-items:flex-end; justify-content:center; z-index:50;
   }
   .modal-backdrop.show{ display:flex; }
@@ -412,7 +413,8 @@
   }
 
   .update-modal-backdrop{
-    position:fixed; inset:0; background:rgba(23,27,46,0.55); backdrop-filter: blur(2px);
+    position:fixed; inset:0; background:rgba(23,27,46,0.55);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
     display:none; align-items:center; justify-content:center; z-index:70; padding:24px;
   }
   .update-modal-backdrop.show{ display:flex; }
@@ -442,6 +444,13 @@
   .install-modal-text{
     font-size:12.5px; color:var(--muted); line-height:1.5; margin:0 0 20px;
   }
+  .install-steps{
+    text-align:left; margin:0 0 20px; padding:14px 14px 14px 32px; background:var(--surface-2);
+    border-radius:12px; font-size:12.5px; color:var(--ink); line-height:1.6;
+  }
+  .install-steps li{ margin-bottom:6px; }
+  .install-steps li:last-child{ margin-bottom:0; }
+  .install-steps b{ color:var(--accent); }
   .install-later-btn{
     background:none !important; color:var(--muted) !important; box-shadow:none !important;
     margin-top:8px; font-weight:600 !important;
@@ -475,7 +484,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v17</span></h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v18</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -677,6 +686,19 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="rotaAntigaBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:var(--bad-soft); color:var(--bad);">⚠️ rota de outro dia</div>
+    <p class="renew-modal-text">Esta rota (<b id="rotaAntigaNome"></b>) foi iniciada em <b id="rotaAntigaData"></b>, não hoje.
+    Pra evitar misturar pacotes de dias diferentes, inicie uma nova rota antes de continuar escaneando.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="rotaAntigaCancelar" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" id="rotaAntigaIniciar" style="flex:2;">Iniciar Rota agora</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="manualCodeBackdrop">
   <div class="modal">
     <div class="handle"></div>
@@ -735,8 +757,9 @@
     <p class="install-modal-text" id="installModalText">
       Instale o app na tela inicial do seu celular pra abrir mais rápido, em tela cheia, como um app de verdade.
     </p>
+    <ol class="install-steps" id="installSteps" style="display:none;"></ol>
     <button id="installConfirmBtn">Instalar</button>
-    <button id="installLaterBtn" class="install-later-btn">Agora não</button>
+    <button id="installLaterBtn" class="install-later-btn"><span id="installLaterBtnText">Agora não</span></button>
   </div>
 </div>
 
@@ -822,6 +845,11 @@
   const manualCodeWarn = document.getElementById('manualCodeWarn');
   const manualCodeCancel = document.getElementById('manualCodeCancel');
   const manualCodeConfirm = document.getElementById('manualCodeConfirm');
+  const rotaAntigaBackdrop = document.getElementById('rotaAntigaBackdrop');
+  const rotaAntigaNome = document.getElementById('rotaAntigaNome');
+  const rotaAntigaData = document.getElementById('rotaAntigaData');
+  const rotaAntigaCancelar = document.getElementById('rotaAntigaCancelar');
+  const rotaAntigaIniciar = document.getElementById('rotaAntigaIniciar');
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -881,6 +909,30 @@
     }catch(e){ /* armazenamento indisponível */ }
   }
 
+  const ROUTE_START_DATE_KEY = 'rotaParadas.rotaIniciadaEm';
+
+  function saveRouteStartDate(){
+    try{ localStorage.setItem(ROUTE_START_DATE_KEY, new Date().toDateString()); }catch(e){}
+  }
+
+  function isRotaDeOutroDia(){
+    if (!currentRoute) return false;
+    let dataInicio = null;
+    try{ dataInicio = localStorage.getItem(ROUTE_START_DATE_KEY); }catch(e){}
+    if (!dataInicio) return false;
+    return dataInicio !== new Date().toDateString();
+  }
+
+  function mostrarAlertaRotaAntiga(){
+    let dataInicio = null;
+    try{ dataInicio = localStorage.getItem(ROUTE_START_DATE_KEY); }catch(e){}
+    rotaAntigaNome.textContent = currentRoute || '';
+    rotaAntigaData.textContent = dataInicio || '';
+    vibrate([40,60,40]);
+    showScanAlert('bad', 'Rota de outro dia', 'inicie uma nova rota pra continuar');
+    rotaAntigaBackdrop.classList.add('show');
+  }
+
   function loadRoute(){
     try{
       currentRoute = localStorage.getItem(ROUTE_STORAGE_KEY) || null;
@@ -906,6 +958,7 @@
     }
     currentRoute = val;
     saveRoute();
+    saveRouteStartDate();
     renderRouteSubtitle();
     welcomeBackdrop.classList.remove('show');
     showToast('Rota ' + val + ' iniciada', 'good');
@@ -1286,8 +1339,7 @@
         video: {
           facingMode: { ideal: facingMode },
           width: { ideal: 1920 },
-          height: { ideal: 1440 },
-          advanced: [{ focusMode: 'continuous' }]
+          height: { ideal: 1440 }
         },
         audio: false
       });
@@ -1296,7 +1348,10 @@
 
       // Tenta forçar foco contínuo caso o navegador suporte esse controle
       // (ajuda bastante em etiquetas amassadas/em ângulo, que exigem
-      // reajuste de foco constante).
+      // reajuste de foco constante). Feito só depois da câmera já estar
+      // aberta, e checando a capacidade antes — em navegadores que não
+      // suportam isso (como o Safari), isso nunca chega a ser tentado,
+      // então nunca impede a câmera de funcionar.
       try{
         const [track] = stream.getVideoTracks();
         const capabilities = track.getCapabilities ? track.getCapabilities() : {};
@@ -1442,6 +1497,13 @@
       vibrate(90);
       tocarBipeSucesso();
       resolverBuscaPorCodigo(cleaned);
+      return;
+    }
+
+    if (isRotaDeOutroDia()){
+      if (!rotaAntigaBackdrop.classList.contains('show')){
+        mostrarAlertaRotaAntiga();
+      }
       return;
     }
 
@@ -1850,6 +1912,11 @@
       manualCodeWarn.textContent = 'o ID precisa ter exatamente ' + CODE_LENGTH + ' dígitos numéricos';
       return;
     }
+    if (isRotaDeOutroDia()){
+      closeManualCodeModal();
+      mostrarAlertaRotaAntiga();
+      return;
+    }
     closeManualCodeModal();
     pendingCode = val;
     openModal(val);
@@ -1879,6 +1946,14 @@
     saveRoute();
     renderRouteSubtitle();
     openWelcomeModal();
+  });
+
+  rotaAntigaCancelar.addEventListener('click', () => {
+    rotaAntigaBackdrop.classList.remove('show');
+  });
+  rotaAntigaIniciar.addEventListener('click', () => {
+    rotaAntigaBackdrop.classList.remove('show');
+    startRouteBtn.click();
   });
 
   clearBtn.addEventListener('click', () => {
@@ -1915,6 +1990,28 @@
       welcomeBackdrop.classList.remove('show');
     }
   }
+
+  // ---- Limpeza semanal do cache do app (nunca mexe nos seus dados salvos) ----
+  // Isso limpa só o "cache técnico" do service worker (cópias de arquivos
+  // como o próprio index.html) — a lista de pacotes, a rota e o acesso
+  // continuam salvos normalmente no localStorage, sem serem tocados.
+  // Como só roda enquanto o app está aberto, funciona sempre que você abrir
+  // o app de madrugada (0h-5h) depois de 7 dias desde a última limpeza —
+  // não há como garantir que rode sozinho com o app fechado.
+  function talvezLimparCacheSemanal(){
+    if (!('caches' in window)) return;
+    const CHAVE = 'minhaRota.ultimaLimpezaCache';
+    let ultima = null;
+    try{ ultima = localStorage.getItem(CHAVE); }catch(e){}
+    const hora = new Date().getHours();
+    const janelaNoturna = hora >= 0 && hora < 5;
+    const seteDiasPassados = !ultima || (Date.now() - parseInt(ultima, 10)) > 7 * 86400000;
+    if (!janelaNoturna || !seteDiasPassados) return;
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
+      try{ localStorage.setItem(CHAVE, String(Date.now())); }catch(e){}
+    }).catch(() => {});
+  }
+  talvezLimparCacheSemanal();
 
   validateStoredAccess();
 
@@ -1970,7 +2067,9 @@
     deferredInstallEvent = event;
     installModalTitle.textContent = 'Instalar o Minha Rota?';
     installModalText.textContent = 'Instale o app na tela inicial do seu celular pra abrir mais rápido, em tela cheia, como um app de verdade.';
+    installSteps.style.display = 'none';
     installConfirmBtn.style.display = 'block';
+    installLaterBtnText.textContent = 'Agora não';
     installModal.classList.add('show');
   });
 
@@ -1994,15 +2093,23 @@
 
   // iOS Safari não dispara beforeinstallprompt — mostramos instrução manual,
   // só se ainda não estiver instalado e não tiver sido dispensado recentemente.
+  const installSteps = document.getElementById('installSteps');
+  const installLaterBtnText = document.getElementById('installLaterBtnText');
   (function checarInstalacaoIOS(){
     const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const ehSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|edgios/i.test(navigator.userAgent);
     if (!ehIOS || !ehSafari) return;
     if (estaRodandoInstalado() || foiDispensadoRecentemente()) return;
     setTimeout(() => {
-      installModalTitle.textContent = 'Instalar o Minha Rota?';
-      installModalText.textContent = 'Toque no botão de compartilhar 📤 na barra do Safari e depois em "Adicionar à Tela de Início".';
+      installModalTitle.textContent = 'Instalar o Minha Rota';
+      installModalText.textContent = 'O Safari não instala com um toque só, mas é rápido — siga os passos abaixo:';
+      installSteps.innerHTML =
+        '<li>Toque no ícone de compartilhar <b>📤</b>, na barra do Safari</li>' +
+        '<li>Role a lista e toque em <b>"Adicionar à Tela de Início"</b></li>' +
+        '<li>Toque em <b>"Adicionar"</b> no canto superior direito</li>';
+      installSteps.style.display = 'block';
       installConfirmBtn.style.display = 'none';
+      installLaterBtnText.textContent = 'Entendi';
       installModal.classList.add('show');
     }, 2000);
   })();

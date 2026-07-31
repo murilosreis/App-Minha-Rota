@@ -1,6 +1,9 @@
 {
-  "versao": "17",
+  "versao": "18",
   "novidades": [
-    "Leitura de código de barras com mais precisão e alcance a distância"
+    "Corrigida abertura da câmera no Safari (iPhone) que podia falhar",
+    "Tela de instalação no iPhone agora mostra o passo a passo certo do Safari",
+    "Aviso na tela se você tentar escanear com uma rota iniciada em outro dia",
+    "Limpeza automática semanal do cache técnico do app (não afeta sua lista salva)"
   ]
 }
