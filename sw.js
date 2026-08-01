@@ -1,4 +1,4 @@
-const CACHE_NAME = 'minha-rota-v20';
+const CACHE_NAME = 'minha-rota-v22';
 const APP_SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

@@ -304,6 +304,7 @@
     border-radius:24px 24px 0 0; padding:10px 20px 26px;
     animation: slideUp 0.24s cubic-bezier(.2,.8,.3,1);
     box-shadow: 0 -12px 30px rgba(23,27,46,0.18);
+    max-height:85vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
   @keyframes slideUp{ from{ transform:translateY(24px); opacity:0.5; } to{ transform:translateY(0); opacity:1; } }
   .handle{ width:36px; height:4px; background:var(--line); border-radius:100px; margin:6px auto 16px; }
@@ -323,6 +324,7 @@
     font-family:var(--font-display); font-size:34px; font-weight:800; color:#B8790A;
     background:#FFF4E0; border-radius:16px; padding:16px; margin-bottom:12px;
   }
+  .duplicado-parada-destaque.destaque-erro{ color:var(--bad); background:var(--bad-soft); }
   .duplicado-codigo{
     font-family:var(--font-body); font-size:12.5px; color:var(--muted); font-weight:600;
     margin:0 0 20px; word-break:break-all;
@@ -357,6 +359,10 @@
   .search-result-item .sr-parada{ font-size:11px; color:var(--muted); font-weight:600; flex-shrink:0; }
   .search-empty{ font-size:12px; color:var(--muted); text-align:center; padding:10px 0; }
 
+  .trial-btn{
+    width:100%; background:var(--good-soft); color:var(--good); font-weight:700;
+    font-size:13px; padding:13px; border-radius:100px; margin-top:12px;
+  }
   .access-payment{
     margin-top:18px; padding-top:16px; border-top:1px dashed var(--line);
     text-align:center;
@@ -492,7 +498,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v20</span></h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v22</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -578,6 +584,18 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="buscaResultadoBackdrop">
+  <div class="modal" style="text-align:center;">
+    <div class="handle"></div>
+    <div class="status-pill" id="buscaResultadoPill">✓ pacote encontrado</div>
+    <div class="duplicado-parada-destaque" id="buscaResultadoDestaque">Parada 1</div>
+    <p class="duplicado-codigo" id="buscaResultadoCodigo">00000000000</p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="buscaResultadoFecharBtn" style="flex:1;">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="duplicadoBackdrop">
   <div class="modal" style="text-align:center;">
     <div class="handle"></div>
@@ -630,6 +648,8 @@
         <button class="btn btn-primary" id="accessConfirm" style="flex:1;">Entrar</button>
       </div>
 
+      <button class="trial-btn" id="trialBtn">🎁 Testar grátis por 7 dias</button>
+
       <div class="access-payment">
         <p class="access-payment-title">Ainda não tem uma chave?</p>
         <div class="access-payment-actions">
@@ -644,6 +664,23 @@
         <p class="access-payment-hint">Ao realizar o pagamento, envie o comprovante pelo WhatsApp com o seu Nome.</p>
         <a href="manual.pdf" target="_blank" class="manual-link">📖 Ver manual de uso do app</a>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="trialBackdrop">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:var(--good-soft); color:var(--good);">🎁 teste grátis de 7 dias</div>
+    <div class="code-display" style="font-size:15.5px; font-weight:600;">Só preciso do seu nome pra liberar o acesso na hora.</div>
+    <div class="field-row">
+      <label for="trialNameInput">Nome</label>
+      <input type="text" id="trialNameInput" placeholder="seu nome" autocomplete="off">
+    </div>
+    <div class="warn" id="trialWarn"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="trialCancelBtn" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" id="trialConfirmBtn" style="flex:2;">Começar teste</button>
     </div>
   </div>
 </div>
@@ -825,6 +862,12 @@
   const accessKeyInput = document.getElementById('accessKeyInput');
   const accessWarn = document.getElementById('accessWarn');
   const accessConfirm = document.getElementById('accessConfirm');
+  const trialBtn = document.getElementById('trialBtn');
+  const trialBackdrop = document.getElementById('trialBackdrop');
+  const trialNameInput = document.getElementById('trialNameInput');
+  const trialWarn = document.getElementById('trialWarn');
+  const trialCancelBtn = document.getElementById('trialCancelBtn');
+  const trialConfirmBtn = document.getElementById('trialConfirmBtn');
   const licenseBar = document.getElementById('licenseBar');
   const licenseDate = document.getElementById('licenseDate');
   const licenseDays = document.getElementById('licenseDays');
@@ -853,6 +896,11 @@
   const searchScanBtn = document.getElementById('searchScanBtn');
   const searchCloseBtn = document.getElementById('searchCloseBtn');
 
+  const buscaResultadoBackdrop = document.getElementById('buscaResultadoBackdrop');
+  const buscaResultadoPill = document.getElementById('buscaResultadoPill');
+  const buscaResultadoDestaque = document.getElementById('buscaResultadoDestaque');
+  const buscaResultadoCodigo = document.getElementById('buscaResultadoCodigo');
+  const buscaResultadoFecharBtn = document.getElementById('buscaResultadoFecharBtn');
   const duplicadoBackdrop = document.getElementById('duplicadoBackdrop');
   const duplicadoParadaDestaque = document.getElementById('duplicadoParadaDestaque');
   const duplicadoCodigo = document.getElementById('duplicadoCodigo');
@@ -1005,6 +1053,87 @@
     return id;
   }
 
+  // ---- Teste grátis de 7 dias (autoatendimento, um por aparelho) ----
+  const ADMIN_WHATSAPP_NUMERO = '5573982354945'; // mesmo número da chave Pix
+
+  function formatarDataYMD(date){
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function abrirTrialModal(){
+    trialNameInput.value = '';
+    trialWarn.textContent = '';
+    trialBackdrop.classList.add('show');
+    setTimeout(() => trialNameInput.focus(), 150);
+  }
+
+  function fecharTrialModal(){
+    trialBackdrop.classList.remove('show');
+  }
+
+  async function confirmarTrial(){
+    const nome = trialNameInput.value.trim();
+    if (nome === ''){
+      trialWarn.textContent = 'informe seu nome';
+      return;
+    }
+
+    // Abre a janela do WhatsApp em branco AGORA, ainda dentro do toque da
+    // pessoa — assim o navegador não bloqueia como pop-up. O endereço de
+    // verdade é preenchido só depois que o teste for criado com sucesso.
+    const janelaWhats = window.open('', '_blank');
+
+    trialConfirmBtn.disabled = true;
+    trialWarn.textContent = 'criando seu teste...';
+
+    const deviceId = getDeviceId();
+    const chave = 'TRIAL-' + deviceId;
+    const hoje = new Date();
+    const validadeDate = new Date(hoje);
+    validadeDate.setDate(validadeDate.getDate() + 7);
+    const validade = formatarDataYMD(validadeDate);
+
+    try{
+      await db.collection('chaves').doc(chave).set({
+        nome: nome,
+        validade: validade,
+        ativo: true,
+        aparelhoId: deviceId,
+        trial: true
+      });
+
+      saveAccessInfo({ chave: chave, deviceId: deviceId, nome: nome });
+      trialConfirmBtn.disabled = false;
+      fecharTrialModal();
+      renderLicenseInfo(validade);
+      showToast('Teste grátis liberado até ' + formatarDataBr(validade), 'good', 3500);
+      hideAccessGate();
+      initAppAfterAccess();
+
+      // Preenche e confirma a abertura da conversa com o WhatsApp do admin,
+      // já com os dados prontos — só falta a pessoa tocar em "Enviar".
+      const msg = 'Novo teste grátis iniciado!\nNome: ' + nome + '\nChave: ' + chave + '\nVálido até: ' + formatarDataBr(validade);
+      const url = 'https://wa.me/' + ADMIN_WHATSAPP_NUMERO + '?text=' + encodeURIComponent(msg);
+      if (janelaWhats){ janelaWhats.location.href = url; }
+    }catch(err){
+      if (janelaWhats) janelaWhats.close();
+      trialConfirmBtn.disabled = false;
+      if (err && err.code === 'permission-denied'){
+        trialWarn.textContent = 'este aparelho já usou o teste grátis antes. Fale com o WhatsApp abaixo pra adquirir o plano.';
+      } else {
+        trialWarn.textContent = 'não foi possível criar o teste agora. verifique sua internet e tente de novo.';
+      }
+    }
+  }
+
+  trialBtn.addEventListener('click', abrirTrialModal);
+  trialCancelBtn.addEventListener('click', fecharTrialModal);
+  trialConfirmBtn.addEventListener('click', confirmarTrial);
+  trialNameInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmarTrial(); });
+
   function loadAccessInfo(){
     try{
       const raw = localStorage.getItem(ACCESS_STORAGE_KEY);
@@ -1103,7 +1232,10 @@
         return;
       }
       if (isExpired(data.validade)){
-        showAccessForm('sua chave expirou em ' + data.validade + '. solicite a renovação.');
+        const msg = data.trial
+          ? 'Seu teste grátis de 7 dias acabou em ' + formatarDataBr(data.validade) + '. Adquira o plano completo abaixo pra continuar.'
+          : 'sua chave expirou em ' + data.validade + '. solicite a renovação.';
+        showAccessForm(msg);
         return;
       }
       if (data.aparelhoId && data.aparelhoId !== info.deviceId){
@@ -1151,7 +1283,9 @@
         return;
       }
       if (isExpired(data.validade)){
-        accessWarn.textContent = 'esta chave expirou em ' + data.validade + '. solicite a renovação.';
+        accessWarn.textContent = data.trial
+          ? 'Seu teste grátis de 7 dias acabou em ' + formatarDataBr(data.validade) + '. Adquira o plano completo abaixo.'
+          : 'esta chave expirou em ' + data.validade + '. solicite a renovação.';
         accessConfirm.disabled = false;
         return;
       }
@@ -1396,12 +1530,15 @@
     switchBtn.disabled = true;
   }
 
+  let tickFrameCount = 0;
+
   async function tick(){
     if (!stream) return;
     if (!scanningPaused && video.readyState === video.HAVE_ENOUGH_DATA){
       const vw = video.videoWidth, vh = video.videoHeight;
       if (vw && vh){
         let raw = null;
+        tickFrameCount++;
 
         // 1) Tenta QR primeiro, numa resolução reduzida (jsQR é puro
         // JavaScript e fica bem mais rápido em imagem menor; QR também
@@ -1419,13 +1556,16 @@
           if (qr && qr.data) raw = qr.data;
         }
 
-        // 2) Se não achou QR, tenta código de barras numa resolução bem
-        // maior — mantém a nitidez das barras finas, o que é essencial
-        // pra ler com precisão e a uma distância maior. No Android isso usa
-        // o leitor nativo do sistema; no Safari/iPhone usa o mesmo leitor
-        // rápido baseado em WebAssembly carregado no início da página.
+        // 2) Se não achou QR, tenta código de barras. Na maioria dos quadros
+        // usa uma resolução rápida (1200px) — já bem melhor que o padrão
+        // antigo — e a cada 4 quadros tenta numa resolução bem maior
+        // (1600px), pra pegar códigos mais difíceis/distantes sem deixar
+        // a leitura do dia a dia mais lenta. No Android isso usa o leitor
+        // nativo do sistema; no Safari/iPhone usa o leitor baseado em
+        // WebAssembly carregado no início da página.
         if (!raw && barcodeDetector){
-          const MAX_DIM_BARCODE = 1600;
+          const tentativaProfunda = (tickFrameCount % 4 === 0);
+          const MAX_DIM_BARCODE = tentativaProfunda ? 1600 : 1200;
           const escalaBar = Math.min(1, MAX_DIM_BARCODE / Math.max(vw, vh));
           const wBar = Math.round(vw * escalaBar);
           const hBar = Math.round(vh * escalaBar);
@@ -1679,15 +1819,29 @@
   function resolverBuscaPorCodigo(codigo){
     const idx = entries.findIndex(e => e.codigo === codigo);
     if (idx === -1){
-      showScanAlert('bad', 'Não encontrado', 'este pacote não está na sua lista');
-      showToast('Pacote não encontrado na lista', 'bad');
+      buscaResultadoPill.style.background = 'var(--bad-soft)';
+      buscaResultadoPill.style.color = 'var(--bad)';
+      buscaResultadoPill.textContent = '✗ não encontrado';
+      buscaResultadoDestaque.classList.add('destaque-erro');
+      buscaResultadoDestaque.textContent = 'Não está na lista';
+      buscaResultadoCodigo.textContent = codigo;
     } else {
-      showScanAlert('good', 'Pacote encontrado', 'parada ' + entries[idx].parada);
-      showToast('Pacote encontrado — parada ' + entries[idx].parada, 'good');
-      destacarEntrada(idx);
+      const entry = entries[idx];
+      const rotulo = Number.isInteger(entry.parada) ? ('Parada ' + entry.parada) : ('Etiqueta branca ' + entry.parada);
+      buscaResultadoPill.style.background = '';
+      buscaResultadoPill.style.color = '';
+      buscaResultadoPill.textContent = '✓ pacote encontrado';
+      buscaResultadoDestaque.classList.remove('destaque-erro');
+      buscaResultadoDestaque.textContent = rotulo;
+      buscaResultadoCodigo.textContent = entry.codigo;
     }
+    buscaResultadoBackdrop.classList.add('show');
     sairModoBusca();
   }
+
+  buscaResultadoFecharBtn.addEventListener('click', () => {
+    buscaResultadoBackdrop.classList.remove('show');
+  });
 
   searchBtn.addEventListener('click', openSearchModal);
   searchCloseBtn.addEventListener('click', closeSearchModal);
@@ -1930,6 +2084,12 @@
       mostrarAlertaRotaAntiga();
       return;
     }
+    const existing = entries.find(e => e.codigo === val);
+    if (existing){
+      closeManualCodeModal();
+      mostrarPacoteDuplicado(existing);
+      return;
+    }
     closeManualCodeModal();
     pendingCode = val;
     openModal(val);
@@ -2031,6 +2191,22 @@
       try{ localStorage.setItem(CHAVE, String(Date.now())); }catch(e){}
     }).catch(() => {});
   }
+  // ---- Trava a rolagem da tela principal enquanto qualquer janela (modal)
+  // estiver aberta — sem isso, arrastar o dedo dentro de uma janela como o
+  // Resumo também rolava a tela de fundo por baixo. A própria janela
+  // continua rolando normalmente por dentro dela mesma.
+  (function travarRolagemComModalAberto(){
+    function atualizar(){
+      const algumAberto = document.querySelector('.modal-backdrop.show, .update-modal-backdrop.show');
+      document.body.style.overflow = algumAberto ? 'hidden' : '';
+    }
+    const observer = new MutationObserver(atualizar);
+    document.querySelectorAll('.modal-backdrop, .update-modal-backdrop').forEach(el => {
+      observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+    atualizar();
+  })();
+
   talvezLimparCacheSemanal();
 
   validateStoredAccess();

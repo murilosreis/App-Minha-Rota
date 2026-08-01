@@ -1,7 +1,7 @@
 {
-  "versao": "20",
+  "versao": "22",
   "novidades": [
-    "Leitura de código de barras muito mais rápida e precisa no iPhone/Safari",
-    "Mensagem de pacote já registrado agora aparece em destaque no centro da tela, com botão pra voltar"
+    "Novo: teste grátis de 7 dias direto na tela inicial, sem precisar falar comigo antes",
+    "Aviso de teste grátis expirado agora é diferente do aviso de chave paga expirada"
   ]
 }
