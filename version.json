@@ -1,6 +1,7 @@
 {
-  "versao": "19",
+  "versao": "20",
   "novidades": [
-    "Corrigido: o alerta de 'rota de outro dia' não funcionava em rotas que já estavam ativas antes dessa função existir"
+    "Leitura de código de barras muito mais rápida e precisa no iPhone/Safari",
+    "Mensagem de pacote já registrado agora aparece em destaque no centro da tela, com botão pra voltar"
   ]
 }

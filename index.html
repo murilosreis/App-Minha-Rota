@@ -319,6 +319,14 @@
     font-size:15px; font-weight:600; color:var(--ink); line-height:1.5;
     margin:0 0 18px; word-break:normal; overflow-wrap:normal;
   }
+  .duplicado-parada-destaque{
+    font-family:var(--font-display); font-size:34px; font-weight:800; color:#B8790A;
+    background:#FFF4E0; border-radius:16px; padding:16px; margin-bottom:12px;
+  }
+  .duplicado-codigo{
+    font-family:var(--font-body); font-size:12.5px; color:var(--muted); font-weight:600;
+    margin:0 0 20px; word-break:break-all;
+  }
   .modal label{
     font-size:12px; color:var(--muted); font-weight:700; display:block; margin-bottom:8px;
   }
@@ -484,7 +492,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v19</span></h1>
+        <h1>Minha Rota <span class="version-tag" id="appVersionTag">v20</span></h1>
         <p id="routeSubtitle">escaneie e organize por parada</p>
       </div>
     </div>
@@ -566,6 +574,19 @@
         <div class="icon">📍</div>
         <p>Nenhuma parada ainda.<br>Escaneie um pacote para começar sua rota.</p>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="duplicadoBackdrop">
+  <div class="modal" style="text-align:center;">
+    <div class="handle"></div>
+    <div class="status-pill" style="background:#FFF4E0; color:#B8790A;">🔁 pacote já registrado</div>
+    <p class="renew-modal-text" style="margin-bottom:6px;">Este pacote já está vinculado a:</p>
+    <div class="duplicado-parada-destaque" id="duplicadoParadaDestaque">Parada 1</div>
+    <p class="duplicado-codigo" id="duplicadoCodigo">00000000000</p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="duplicadoVoltarBtn" style="flex:1;">Voltar para a tela principal</button>
     </div>
   </div>
 </div>
@@ -766,7 +787,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/iife/polyfill.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script>
@@ -832,6 +853,10 @@
   const searchScanBtn = document.getElementById('searchScanBtn');
   const searchCloseBtn = document.getElementById('searchCloseBtn');
 
+  const duplicadoBackdrop = document.getElementById('duplicadoBackdrop');
+  const duplicadoParadaDestaque = document.getElementById('duplicadoParadaDestaque');
+  const duplicadoCodigo = document.getElementById('duplicadoCodigo');
+  const duplicadoVoltarBtn = document.getElementById('duplicadoVoltarBtn');
   const modalBackdrop = document.getElementById('modalBackdrop');
   const modalCode = document.getElementById('modalCode');
   const paradaInput = document.getElementById('paradaInput');
@@ -1215,6 +1240,13 @@
     window.open(WHATSAPP_URL, '_blank');
   });
 
+  // BarcodeDetector: no Android/Chrome já existe nativo no navegador (mais
+  // rápido, roda no próprio sistema). No Safari/iPhone e no Firefox, que não
+  // têm essa API nativa, o script carregado acima preenche essa lacuna
+  // usando WebAssembly (ZXing-C++ compilado) — muito mais rápido e preciso
+  // que uma biblioteca em JavaScript puro. Como as duas versões têm
+  // exatamente a mesma forma de uso, o resto do código nem precisa saber
+  // qual das duas está rodando.
   let barcodeDetector = null;
   let usingNativeDetector = false;
   if ('BarcodeDetector' in window) {
@@ -1222,34 +1254,6 @@
       barcodeDetector = new BarcodeDetector({ formats });
       usingNativeDetector = true;
     }).catch(() => { usingNativeDetector = false; });
-  }
-
-  // Fallback em JavaScript puro para ler código de barras em navegadores que
-  // não têm a API nativa BarcodeDetector (ex.: Safari/iOS, Firefox). Assim
-  // a leitura de código de barras funciona em praticamente qualquer navegador,
-  // sem depender de o app estar instalado no celular.
-  let zxingReader = null;
-  let zxingReady = false;
-  if (window.ZXing) {
-    try{
-      const hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.CODE_93,
-        ZXing.BarcodeFormat.CODABAR,
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.RSS_14,
-        ZXing.BarcodeFormat.RSS_EXPANDED
-      ]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      zxingReader = new ZXing.BrowserMultiFormatReader(hints);
-      zxingReady = true;
-    }catch(e){ zxingReady = false; }
   }
 
   function showToast(msg, kind, duration){
@@ -1417,8 +1421,10 @@
 
         // 2) Se não achou QR, tenta código de barras numa resolução bem
         // maior — mantém a nitidez das barras finas, o que é essencial
-        // pra ler com precisão e a uma distância maior.
-        if (!raw && (usingNativeDetector || (!usingNativeDetector && zxingReady))){
+        // pra ler com precisão e a uma distância maior. No Android isso usa
+        // o leitor nativo do sistema; no Safari/iPhone usa o mesmo leitor
+        // rápido baseado em WebAssembly carregado no início da página.
+        if (!raw && barcodeDetector){
           const MAX_DIM_BARCODE = 1600;
           const escalaBar = Math.min(1, MAX_DIM_BARCODE / Math.max(vw, vh));
           const wBar = Math.round(vw * escalaBar);
@@ -1426,18 +1432,11 @@
           canvas.width = wBar; canvas.height = hBar;
           ctx.drawImage(video, 0, 0, wBar, hBar);
 
-          if (usingNativeDetector && barcodeDetector){
-            try{
-              const bitmap = await createImageBitmap(canvas);
-              const results = await barcodeDetector.detect(bitmap);
-              if (results && results.length > 0){ raw = results[0].rawValue; }
-            }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
-          } else if (zxingReady && zxingReader){
-            try{
-              const result = zxingReader.decodeFromCanvas(canvas);
-              if (result){ raw = result.getText ? result.getText() : result.text; }
-            }catch(e){ /* nenhum código encontrado neste quadro — normal, tenta de novo */ }
-          }
+          try{
+            const bitmap = await createImageBitmap(canvas);
+            const results = await barcodeDetector.detect(bitmap);
+            if (results && results.length > 0){ raw = results[0].rawValue; }
+          }catch(e){ /* sem leitura nesta captura, tenta de novo no próximo quadro */ }
         }
 
         if (raw) handleRaw(raw);
@@ -1513,18 +1512,32 @@
       tocarBipe(1200, 160);
       viewfinder.classList.add('flash-bad');
       setTimeout(() => viewfinder.classList.remove('flash-bad'), 400);
-      showScanAlert('warn', 'Pacote duplicado', 'já vinculado à parada ' + existing.parada);
-    } else {
-      vibrate(90);
-      tocarBipeSucesso();
-      viewfinder.classList.add('flash-ok');
-      setTimeout(() => viewfinder.classList.remove('flash-ok'), 400);
+      scanningPaused = true;
+      mostrarPacoteDuplicado(existing);
+      return;
     }
+
+    vibrate(90);
+    tocarBipeSucesso();
+    viewfinder.classList.add('flash-ok');
+    setTimeout(() => viewfinder.classList.remove('flash-ok'), 400);
 
     scanningPaused = true;
     pendingCode = cleaned;
     openModal(cleaned);
   }
+
+  function mostrarPacoteDuplicado(entry){
+    const rotulo = Number.isInteger(entry.parada) ? ('Parada ' + entry.parada) : ('Etiqueta branca ' + entry.parada);
+    duplicadoParadaDestaque.textContent = rotulo;
+    duplicadoCodigo.textContent = entry.codigo;
+    duplicadoBackdrop.classList.add('show');
+  }
+
+  duplicadoVoltarBtn.addEventListener('click', () => {
+    duplicadoBackdrop.classList.remove('show');
+    setTimeout(() => { scanningPaused = false; }, 400);
+  });
 
   function openModal(code){
     modalCode.textContent = code;
