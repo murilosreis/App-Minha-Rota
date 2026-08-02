@@ -1,7 +1,7 @@
 {
-  "versao": "22",
+  "versao": "23",
   "novidades": [
-    "Novo: teste grátis de 7 dias direto na tela inicial, sem precisar falar comigo antes",
-    "Aviso de teste grátis expirado agora é diferente do aviso de chave paga expirada"
+    "Chave de teste grátis agora é um código curto de 8 caracteres, em vez do nome do aparelho",
+    "Corrigido: apagar a chave de teste no Firebase não liberava um novo teste no mesmo aparelho"
   ]
 }
