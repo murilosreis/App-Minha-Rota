@@ -18,6 +18,7 @@ App web (funciona no navegador do celular, sem instalação obrigatória) que:
 - `sw.js` — service worker (permite instalar e funcionar offline)
 - `icon-192.png` / `icon-512.png` — ícone do app
 - `manual.pdf` — manual de uso do app, acessível pelo botão 📖 dentro do app
+- `version.json` — lista de novidades mostrada na tela de "Atualização disponível" (edite este arquivo a cada nova versão)
 
 **Todos esses arquivos precisam estar juntos, na raiz do repositório**, para o PWA
 funcionar corretamente.
@@ -132,3 +133,49 @@ o cliente digita a chave nova, que vincula ao mesmo aparelho automaticamente.
 | `validade` | string `AAAA-MM-DD` | Data limite de uso da chave |
 | `ativo` | boolean | Liga/desliga o acesso na hora, independente da validade |
 | `aparelhoId` | string ou nulo | Aparelho vinculado — vazio = ainda não usado |
+
+## Teste grátis de 7 dias (autoatendimento)
+
+Na tela inicial, qualquer pessoa pode tocar em **"Testar grátis por 7 dias"**,
+criar uma conta rápida com **nome, e-mail e senha**, e o próprio app libera
+o acesso por 7 dias — sem precisar falar com você antes. Quando alguém faz
+isso pela primeira vez, seu WhatsApp recebe uma mensagem pré-pronta (a
+pessoa só precisa tocar em "Enviar") com o nome e o e-mail dela, pra você
+acompanhar.
+
+Essas chaves de teste aparecem na mesma coleção `chaves` no Firestore,
+com um campo extra `trial: true` pra você diferenciar das chaves pagas —
+mas repare que o **ID do documento**, pra essas, é um código longo (o UID
+da conta), não um código curto de 8 caracteres como as chaves pagas.
+
+### ⚠️ Passo obrigatório: ativar o login por e-mail/senha no Firebase
+
+Antes do botão de teste grátis funcionar, você precisa ativar esse método
+de login uma única vez:
+
+1. No console do Firebase, vá em **Build → Authentication** (ou
+   **Compilação → Autenticação**).
+2. Clique em **"Get started"** (Vamos começar), se for a primeira vez.
+3. Na aba **"Sign-in method"** (Método de login), clique em **"E-mail/senha"**.
+4. Ative a primeira opção (E-mail/senha) e clique em **Salvar**.
+
+Sem esse passo, a criação de conta do teste grátis vai falhar.
+
+### Por que isso impede repetir o teste
+
+O Firebase **não deixa criar duas contas com o mesmo e-mail** — então,
+mesmo que a pessoa desinstale o app, limpe os dados do navegador, ou troque
+de aparelho, o e-mail dela já fica "gasto" permanentemente depois do
+primeiro teste. Isso resolve o problema que existia antes (o controle
+baseado só no aparelho se perdia ao desinstalar o app).
+
+Se a mesma pessoa tentar nascer outro teste com o mesmo e-mail, o app
+detecta e tenta logar ela de volta na conta já existente — mostrando o
+status real (ativo, expirado, etc.), em vez de criar um teste novo.
+
+### Se quiser dar uma segunda chance pra alguém
+
+Vá em **Authentication → Users**, encontre a pessoa pelo e-mail, e apague
+a conta dela ali. Isso libera esse e-mail pra criar um teste novo. Você
+também pode apagar o documento correspondente na coleção `chaves` (mesmo
+ID/UID), pra não ficar lixo antigo — mas não é obrigatório.
