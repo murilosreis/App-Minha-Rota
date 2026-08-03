@@ -185,6 +185,25 @@ novo mas no mesmo aparelho, a conta nova é criada mas a chave de teste é
 recusada — e o app apaga a conta recém-criada sozinho, pra não acumular
 contas "fantasma" sem uso no Firebase.
 
+### Quando alguém do teste grátis decide virar cliente pago
+
+**Você não cria uma chave nova pra essa pessoa.** É só estender a validade
+da mesma chave de teste que ela já tem — ela nem percebe diferença, continua
+logada normalmente no celular dela.
+
+1. Quando a pessoa mandar o comprovante do Pix, confirme o **e-mail** dela
+   (você já recebeu isso na mensagem de WhatsApp lá no início do teste —
+   se perdeu, o campo `email` já vem salvo dentro da própria chave).
+2. No console do Firebase, vá em **Security → Authentication → Users**,
+   procure pelo e-mail dela, e copie o **UID** (um código bem mais longo
+   que os 8 caracteres das chaves pagas).
+3. Vá em **Firestore → Dados → chaves**, e abra o documento cujo **ID**
+   é esse UID.
+4. Edite o campo `validade` pra uma data nova (+30 dias, por exemplo).
+5. Se quiser, mude também `trial` de `true` pra `false`, só pra marcar
+   que essa pessoa virou cliente de verdade (não é obrigatório, só ajuda
+   a organizar).
+
 ### Se quiser dar uma segunda chance pra alguém
 
 Como agora são duas travas, pra liberar de verdade um teste novo você

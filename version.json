@@ -1,7 +1,6 @@
 {
-  "versao": "26",
+  "versao": "32",
   "novidades": [
-    "Nova logo do app em todo lugar (ícone, cabeçalho)",
-    "Nova animação de abertura, uma vez por dia, com a logo completa"
+    "Chave de teste grátis agora também guarda o e-mail, facilitando localizar e renovar depois"
   ]
 }
