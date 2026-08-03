@@ -163,19 +163,41 @@ Sem esse passo, a criação de conta do teste grátis vai falhar.
 
 ### Por que isso impede repetir o teste
 
-O Firebase **não deixa criar duas contas com o mesmo e-mail** — então,
-mesmo que a pessoa desinstale o app, limpe os dados do navegador, ou troque
-de aparelho, o e-mail dela já fica "gasto" permanentemente depois do
-primeiro teste. Isso resolve o problema que existia antes (o controle
-baseado só no aparelho se perdia ao desinstalar o app).
+Existem **duas travas independentes**, e as duas precisam ser "novas" pra
+conseguir outro teste:
 
-Se a mesma pessoa tentar nascer outro teste com o mesmo e-mail, o app
-detecta e tenta logar ela de volta na conta já existente — mostrando o
-status real (ativo, expirado, etc.), em vez de criar um teste novo.
+1. **Conta**: o Firebase não deixa criar duas contas com o mesmo e-mail —
+   então reinstalar o app ou trocar de aparelho sozinho não adianta, o
+   e-mail continua "gasto".
+2. **Aparelho**: existe também um carimbo permanente (`trial_devices`) que
+   registra que aquele aparelho específico já pegou um teste — então só
+   trocar de e-mail (no mesmo aparelho) também não adianta.
+
+Pra conseguir um teste novo de verdade, seria preciso um **e-mail novo E
+um aparelho "novo"** ao mesmo tempo (ex: limpar todos os dados do
+navegador) — o que já é bem mais trabalho do que a maioria das pessoas
+tentando aproveitar o sistema vai ter interesse em fazer.
+
+Se a mesma pessoa tentar de novo com o mesmo e-mail, o app detecta e tenta
+logar ela de volta na conta já existente — mostrando o status real (ativo,
+expirado, etc.), em vez de criar um teste novo. Se tentar com um e-mail
+novo mas no mesmo aparelho, a conta nova é criada mas a chave de teste é
+recusada — e o app apaga a conta recém-criada sozinho, pra não acumular
+contas "fantasma" sem uso no Firebase.
 
 ### Se quiser dar uma segunda chance pra alguém
 
-Vá em **Authentication → Users**, encontre a pessoa pelo e-mail, e apague
-a conta dela ali. Isso libera esse e-mail pra criar um teste novo. Você
-também pode apagar o documento correspondente na coleção `chaves` (mesmo
-ID/UID), pra não ficar lixo antigo — mas não é obrigatório.
+Como agora são duas travas, pra liberar de verdade um teste novo você
+precisa apagar as duas:
+
+1. **A conta**: vá em **Authentication → Users**, encontre a pessoa pelo
+   e-mail, e apague a conta ali.
+2. **O carimbo do aparelho**: antes de apagar a chave, anote o valor do
+   campo `aparelhoId` dela (em **Firestore → Dados → chaves**). Depois vá
+   em **Firestore → Dados → trial_devices**, encontre o documento cujo
+   **ID** é igual a esse `aparelhoId`, e apague ele também.
+3. Pode apagar o documento da chave em `chaves` também, só pra não deixar
+   lixo antigo (não é obrigatório).
+
+Só depois desses passos a pessoa consegue mesmo gerar um teste novo,
+mesmo usando o mesmo e-mail de antes.
