@@ -1,7 +1,7 @@
 {
-  "versao": "23",
+  "versao": "26",
   "novidades": [
-    "Chave de teste grátis agora é um código curto de 8 caracteres, em vez do nome do aparelho",
-    "Corrigido: apagar a chave de teste no Firebase não liberava um novo teste no mesmo aparelho"
+    "Nova logo do app em todo lugar (ícone, cabeçalho)",
+    "Nova animação de abertura, uma vez por dia, com a logo completa"
   ]
 }
