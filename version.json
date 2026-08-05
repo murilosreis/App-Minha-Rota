@@ -1,6 +1,7 @@
 {
-  "versao": "32",
+  "versao": "34",
   "novidades": [
-    "Chave de teste grátis agora também guarda o e-mail, facilitando localizar e renovar depois"
+    "Leitura de código de barras muito mais precisa: agora sempre usa a resolução máxima da câmera, em vez de alternar com uma resolução reduzida",
+    "Corrigido erro que às vezes impedia a câmera de abrir (AbortError) — o app agora tenta de novo automaticamente"
   ]
 }
