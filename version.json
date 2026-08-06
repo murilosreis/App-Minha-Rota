@@ -1,7 +1,8 @@
 {
-  "versao": "34",
+  "versao": "35",
   "novidades": [
-    "Leitura de código de barras muito mais precisa: agora sempre usa a resolução máxima da câmera, em vez de alternar com uma resolução reduzida",
-    "Corrigido erro que às vezes impedia a câmera de abrir (AbortError) — o app agora tenta de novo automaticamente"
+    "Leitura muito mais rápida: a câmera agora processa só a área da faixa de leitura na tela, em vez da imagem inteira, aliviando bastante o processamento a cada quadro",
+    "Precisão melhorada: como o processamento é concentrado só na área de leitura, o código aparece com mais nitidez relativa, exigindo menos que o usuário insista ou aproxime demais",
+    "Resolução da câmera ajustada para um ponto de equilíbrio entre nitidez e velocidade"
   ]
 }

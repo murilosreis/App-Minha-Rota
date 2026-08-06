@@ -1645,8 +1645,8 @@
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: facingMode },
-            width: { ideal: 2560 },
-            height: { ideal: 1920 }
+            width: { ideal: 1920 },
+            height: { ideal: 1440 }
           },
           audio: false
         });
@@ -1711,22 +1711,59 @@
     switchBtn.disabled = true;
   }
 
+  // Calcula, em pixels do FRAME da câmera (não da tela), o retângulo que
+  // corresponde à faixa de leitura (scan-band) mostrada na tela. O <video>
+  // usa object-fit:cover, então o que aparece na tela é um recorte do
+  // frame real da câmera — este cálculo desfaz esse recorte/escala pra
+  // achar a região certa dentro do frame original.
+  // Usamos uma margem generosa (mais larga e mais alta que a faixa visual)
+  // pra não cortar código que o usuário não alinhou perfeitamente.
+  function getScanCropRect(vw, vh){
+    const rect = video.getBoundingClientRect();
+    const rectW = rect.width || vw;
+    const rectH = rect.height || vh;
+    const scale = Math.max(rectW / vw, rectH / vh);
+    const offsetX = (vw * scale - rectW) / 2;
+    const offsetY = (vh * scale - rectH) / 2;
+
+    // Área de leitura na tela: 84% da largura (um pouco mais que os 80%
+    // do scan-band visual) e 40% da altura, centralizada.
+    const dispLeft = rectW * 0.08;
+    const dispWidth = rectW * 0.84;
+    const dispTop = rectH * 0.30;
+    const dispHeight = rectH * 0.40;
+
+    let sx = (dispLeft + offsetX) / scale;
+    let sy = (dispTop + offsetY) / scale;
+    let sw = dispWidth / scale;
+    let sh = dispHeight / scale;
+
+    // Proteção: mantém o recorte dentro dos limites do frame.
+    sx = Math.max(0, Math.min(sx, vw - 1));
+    sy = Math.max(0, Math.min(sy, vh - 1));
+    sw = Math.max(1, Math.min(sw, vw - sx));
+    sh = Math.max(1, Math.min(sh, vh - sy));
+
+    return { sx, sy, sw, sh };
+  }
+
   async function tick(){
     if (!stream) return;
     if (!scanningPaused && video.readyState === video.HAVE_ENOUGH_DATA){
       const vw = video.videoWidth, vh = video.videoHeight;
       if (vw && vh){
         let raw = null;
+        const crop = getScanCropRect(vw, vh);
 
-        // 1) Tenta QR primeiro, numa resolução reduzida (jsQR é puro
-        // JavaScript e fica bem mais rápido em imagem menor; QR também
-        // costuma ser lido de perto, então isso não prejudica a distância).
+        // 1) Tenta QR primeiro, dentro da área de leitura (recortada),
+        // numa resolução reduzida (jsQR é puro JavaScript e fica bem mais
+        // rápido em imagem menor).
         const MAX_DIM_QR = 900;
-        const escalaQr = Math.min(1, MAX_DIM_QR / Math.max(vw, vh));
-        const wQr = Math.round(vw * escalaQr);
-        const hQr = Math.round(vh * escalaQr);
+        const escalaQr = Math.min(1, MAX_DIM_QR / Math.max(crop.sw, crop.sh));
+        const wQr = Math.round(crop.sw * escalaQr);
+        const hQr = Math.round(crop.sh * escalaQr);
         canvas.width = wQr; canvas.height = hQr;
-        ctx.drawImage(video, 0, 0, wQr, hQr);
+        ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, wQr, hQr);
 
         if (window.jsQR){
           const imageData = ctx.getImageData(0, 0, wQr, hQr);
@@ -1734,15 +1771,16 @@
           if (qr && qr.data) raw = qr.data;
         }
 
-        // 2) Se não achou QR, tenta código de barras usando a resolução
-        // máxima da própria câmera, sem reduzir — isso é essencial pra ler
-        // com precisão etiquetas com barras finas ou levemente danificadas.
+        // 2) Se não achou QR, tenta código de barras dentro da mesma área
+        // de leitura, mas sem reduzir a resolução da câmera nessa região
+        // — como a região já é bem menor que o frame inteiro, isso
+        // continua rápido e ainda mantém a precisão em barras finas.
         // No Android isso usa o leitor nativo do sistema (acelerado por
-        // hardware, aguenta resolução alta numa boa); no Safari/iPhone usa
-        // o leitor baseado em WebAssembly carregado no início da página.
+        // hardware); no Safari/iPhone usa o leitor baseado em WebAssembly
+        // carregado no início da página.
         if (!raw && barcodeDetector){
-          canvas.width = vw; canvas.height = vh;
-          ctx.drawImage(video, 0, 0, vw, vh);
+          canvas.width = crop.sw; canvas.height = crop.sh;
+          ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh);
 
           try{
             const bitmap = await createImageBitmap(canvas);
