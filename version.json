@@ -1,6 +1,7 @@
 {
-  "versao": "35",
+  "versao": "36",
   "novidades": [
-    "Corrigido problema de foco em celulares com várias câmeras traseiras (comum em aparelhos Samsung): o app agora tenta identificar e usar a lente principal, evitando a ultra-angular/macro"
+    "Corrigida lentidão na leitura: a resolução usada estava alta demais e pesava no processador — voltou a um equilíbrio entre precisão e velocidade",
+    "Corrigidas travadinhas logo após ler um código: a lista de pacotes agora atualiza um instante depois, sem travar o retorno visual da leitura"
   ]
 }
