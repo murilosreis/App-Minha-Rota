@@ -1,8 +1,6 @@
 {
   "versao": "35",
   "novidades": [
-    "Leitura muito mais rápida: a câmera agora processa só a área da faixa de leitura na tela, em vez da imagem inteira, aliviando bastante o processamento a cada quadro",
-    "Precisão melhorada: como o processamento é concentrado só na área de leitura, o código aparece com mais nitidez relativa, exigindo menos que o usuário insista ou aproxime demais",
-    "Resolução da câmera ajustada para um ponto de equilíbrio entre nitidez e velocidade"
+    "Corrigido problema de foco em celulares com várias câmeras traseiras (comum em aparelhos Samsung): o app agora tenta identificar e usar a lente principal, evitando a ultra-angular/macro"
   ]
 }
