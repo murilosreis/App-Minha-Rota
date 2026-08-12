@@ -1,7 +1,6 @@
 {
-  "versao": "36",
+  "versao": "40",
   "novidades": [
-    "Corrigida lentidão na leitura: a resolução usada estava alta demais e pesava no processador — voltou a um equilíbrio entre precisão e velocidade",
-    "Corrigidas travadinhas logo após ler um código: a lista de pacotes agora atualiza um instante depois, sem travar o retorno visual da leitura"
+    "Botão \"Remover marcação\" reposicionado: agora fica junto com Cancelar/Marcar, no mesmo padrão de botão, mais fácil de tocar"
   ]
 }
