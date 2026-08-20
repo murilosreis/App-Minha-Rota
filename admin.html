@@ -408,7 +408,7 @@
           '<td class="col-chave" data-label="Chave">' + escapeHtml(chaveCurta) + '</td>' +
           '<td data-label="Cliente">' +
             '<div class="col-nome">' + escapeHtml(c.nome || '(sem nome)') + '</div>' +
-            (c.email ? '<div class="col-email">' + escapeHtml(c.email) + '</div>' : '') +
+            (c.email ? '<div class="col-email">' + escapeHtml(c.email) + (c.email === ADMIN_EMAIL ? ' ⚠️ seu e-mail de admin' : '') + '</div>' : '') +
           '</td>' +
           '<td data-label="Tipo"><span class="badge ' + (c.trial ? 'badge-trial' : 'badge-paga') + '">' + (c.trial ? '🎁 Teste' : '💳 Paga') + '</span></td>' +
           '<td data-label="Validade">' + formatarDataBr(c.validade) + '</td>' +
@@ -433,7 +433,7 @@
               '<div class="edicao-acoes">' +
                 '<button class="btn btn-primary btn-salvar" style="padding:9px 16px;">💾 Salvar</button>' +
                 '<button class="btn btn-amber-soft btn-resetar">📱 Resetar aparelho</button>' +
-                (c.email ? '<button class="btn btn-accent-soft btn-redefinir">✉️ Redefinir senha</button>' : '') +
+                (c.email && c.email !== ADMIN_EMAIL ? '<button class="btn btn-accent-soft btn-redefinir">✉️ Redefinir senha</button>' : '') +
                 '<button class="btn btn-bad-soft btn-apagar">🗑️ Apagar chave</button>' +
               '</div>' +
             '</div>' +
@@ -497,6 +497,10 @@
       const btnRedefinir = tr.querySelector('.btn-redefinir');
       if (btnRedefinir){
         btnRedefinir.addEventListener('click', async function(){
+          if (dados.email === ADMIN_EMAIL){
+            mostrarMsg('Por segurança, não é possível redefinir a senha da conta de administrador por aqui.', false);
+            return;
+          }
           try{
             await auth.sendPasswordResetEmail(dados.email);
             mostrarMsg('E-mail de redefinição enviado para ' + dados.email, true);
