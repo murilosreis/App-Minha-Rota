@@ -144,6 +144,22 @@
 
   .vazio, .carregando{ text-align:center; padding:60px 20px; color:var(--muted); font-size:14px; }
 
+  /* ---------- Modal de novo usuário ---------- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(11,16,48,0.55);
+    align-items:center; justify-content:center; padding:20px; z-index:100;
+    backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-card{
+    background:var(--surface); border-radius:18px; padding:26px; width:100%; max-width:420px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.4); max-height:90vh; overflow-y:auto;
+  }
+  .modal-card h2{ font-size:17px; margin:0 0 4px; }
+  .modal-sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; line-height:1.5; }
+  .field-row-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
+
   @media (max-width:720px){
     .content{ padding:14px 10px 60px; }
     .topbar{ padding:14px 16px; }
@@ -219,6 +235,7 @@
   <div class="topbar">
     <div class="brand"><span class="dot"></span> Painel — Minha Rota</div>
     <div class="right">
+      <button class="btn btn-primary btn-sm" id="novoUsuarioBtn" style="width:auto;">➕ Adicionar usuário</button>
       <button class="btn btn-ghost-dark btn-sm" id="atualizarBtn">↻ Atualizar</button>
       <button class="btn btn-ghost-dark btn-sm" id="logoutBtn">Sair</button>
     </div>
@@ -256,6 +273,44 @@
           <tr><td colspan="7"><div class="carregando">Carregando chaves...</div></td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="novoUsuarioOverlay">
+  <div class="modal-card">
+    <h2>➕ Adicionar novo usuário</h2>
+    <p class="modal-sub">Cria uma chave paga manualmente — a pessoa usa o nome e essa chave pra entrar no app.</p>
+
+    <div class="field">
+      <label for="novoNome">Nome</label>
+      <input type="text" id="novoNome" autocomplete="off" placeholder="nome do cliente">
+    </div>
+    <div class="field">
+      <label for="novoChave">Chave de acesso</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="novoChave" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-transform:uppercase; flex:1;" maxlength="12">
+        <button class="btn btn-ghost" id="novoGerarBtn" title="Gerar aleatória" style="flex-shrink:0;">🎲 Gerar</button>
+      </div>
+    </div>
+    <div class="field-row-2">
+      <div class="field">
+        <label for="novoValidade">Válido até</label>
+        <input type="date" id="novoValidade">
+      </div>
+      <div class="field" style="display:flex; flex-direction:column; justify-content:flex-end;">
+        <label style="margin-bottom:10px;">Ativo</label>
+        <label class="switch">
+          <input type="checkbox" id="novoAtivo" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="login-error" id="novoMsg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="novoCancelarBtn" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" id="novoCriarBtn" style="flex:2;">Criar usuário</button>
     </div>
   </div>
 </div>
@@ -541,6 +596,99 @@
     chip.classList.add('active');
     filtroAtual = chip.getAttribute('data-filtro');
     renderTabela();
+  });
+
+  // ---------- Novo usuário ----------
+  const novoUsuarioBtn = document.getElementById('novoUsuarioBtn');
+  const novoUsuarioOverlay = document.getElementById('novoUsuarioOverlay');
+  const novoNome = document.getElementById('novoNome');
+  const novoChave = document.getElementById('novoChave');
+  const novoValidade = document.getElementById('novoValidade');
+  const novoAtivo = document.getElementById('novoAtivo');
+  const novoMsg = document.getElementById('novoMsg');
+  const novoGerarBtn = document.getElementById('novoGerarBtn');
+  const novoCancelarBtn = document.getElementById('novoCancelarBtn');
+  const novoCriarBtn = document.getElementById('novoCriarBtn');
+
+  function formatarDataYMD(date){
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function gerarChaveAleatoria8(){
+    const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem O/0/I/1, evita confusão visual
+    let out = '';
+    for (let i = 0; i < 8; i++){
+      out += alfabeto[Math.floor(Math.random() * alfabeto.length)];
+    }
+    return out;
+  }
+
+  function abrirNovoUsuario(){
+    novoNome.value = '';
+    novoChave.value = gerarChaveAleatoria8();
+    const daquiA30 = new Date();
+    daquiA30.setDate(daquiA30.getDate() + 30);
+    novoValidade.value = formatarDataYMD(daquiA30);
+    novoAtivo.checked = true;
+    novoMsg.textContent = '';
+    novoUsuarioOverlay.classList.add('show');
+    setTimeout(function(){ novoNome.focus(); }, 150);
+  }
+
+  function fecharNovoUsuario(){
+    novoUsuarioOverlay.classList.remove('show');
+  }
+
+  novoUsuarioBtn.addEventListener('click', abrirNovoUsuario);
+  novoCancelarBtn.addEventListener('click', fecharNovoUsuario);
+  novoGerarBtn.addEventListener('click', function(){ novoChave.value = gerarChaveAleatoria8(); });
+
+  novoCriarBtn.addEventListener('click', async function(){
+    const nome = novoNome.value.trim();
+    const chave = novoChave.value.trim().toUpperCase();
+    const validade = novoValidade.value;
+    const ativo = novoAtivo.checked;
+
+    if (!nome){ novoMsg.textContent = 'informe o nome do cliente'; return; }
+    if (!chave || chave.length < 3){ novoMsg.textContent = 'a chave precisa ter pelo menos 3 caracteres'; return; }
+    if (!validade){ novoMsg.textContent = 'informe a validade'; return; }
+
+    novoCriarBtn.disabled = true;
+    novoCriarBtn.textContent = 'Criando...';
+    novoMsg.textContent = '';
+
+    try{
+      const ref = db.collection('chaves').doc(chave);
+      const existente = await ref.get();
+      if (existente.exists){
+        novoMsg.textContent = 'já existe uma chave com esse código — tente gerar outra.';
+        novoCriarBtn.disabled = false;
+        novoCriarBtn.textContent = 'Criar usuário';
+        return;
+      }
+      await ref.set({
+        nome: nome,
+        validade: validade,
+        ativo: ativo,
+        aparelhoId: null,
+        trial: false
+      });
+      fecharNovoUsuario();
+      await carregarChaves();
+      buscaInput.value = chave;
+      renderTabela();
+    }catch(err){
+      novoMsg.textContent = 'erro ao criar: ' + err.message;
+    }
+    novoCriarBtn.disabled = false;
+    novoCriarBtn.textContent = 'Criar usuário';
+  });
+
+  novoChave.addEventListener('input', function(){
+    novoChave.value = novoChave.value.toUpperCase();
   });
 })();
 </script>
