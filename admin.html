@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel — Minha Rota</title>
+<style>
+  :root{
+    --accent:#4F5DFF; --accent-soft:#E9EBFF; --ink:#171B2E; --muted:#7A8199;
+    --surface:#ffffff; --surface-2:#F4F6FB; --line:#E4E7F1;
+    --good:#17B678; --good-soft:#E4F9F0; --bad:#F0473E; --bad-soft:#FDECEB;
+    --amber:#F5A524; --amber-soft:#FFF4E0;
+    --radius:14px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--surface-2); color:var(--ink); -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Tela de login ---------- */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .login-box{
+    background:var(--surface); border-radius:20px; padding:32px 28px; width:100%; max-width:360px;
+    box-shadow:0 20px 50px -20px rgba(23,27,46,0.25);
+  }
+  .login-box h1{ font-size:19px; margin:0 0 4px; }
+  .login-box p{ font-size:13px; color:var(--muted); margin:0 0 22px; }
+  .field{ margin-bottom:14px; text-align:left; }
+  .field label{ display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .field input{
+    width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line);
+    background:var(--surface-2); font-size:15px; color:var(--ink); font-family:inherit;
+  }
+  .field input:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .btn{
+    border:none; border-radius:10px; padding:12px 16px; font-size:14px; font-weight:700;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn-primary{ background:var(--accent); color:#fff; width:100%; }
+  .btn-primary:disabled{ opacity:0.6; cursor:default; }
+  .login-error{ color:var(--bad); font-size:12.5px; font-weight:600; margin-top:10px; min-height:16px; }
+
+  /* ---------- Painel ---------- */
+  #painel{ display:none; max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; gap:10px; flex-wrap:wrap;
+  }
+  .topbar h1{ font-size:18px; margin:0; }
+  .topbar .right{ display:flex; gap:8px; align-items:center; }
+  .btn-ghost{ background:var(--surface); border:1.5px solid var(--line); color:var(--ink); }
+  .btn-sm{ padding:8px 12px; font-size:12.5px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:18px; }
+  .card{ background:var(--surface); border-radius:12px; padding:14px; text-align:center; }
+  .card .num{ font-size:22px; font-weight:800; }
+  .card .label{ font-size:11px; color:var(--muted); font-weight:600; margin-top:2px; }
+
+  .toolbar{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .toolbar input{
+    flex:1; min-width:180px; padding:11px 14px; border-radius:10px; border:1.5px solid var(--line);
+    font-size:14px; font-family:inherit; background:var(--surface);
+  }
+  .toolbar select{
+    padding:11px 12px; border-radius:10px; border:1.5px solid var(--line); font-size:13px;
+    background:var(--surface); font-family:inherit;
+  }
+
+  .lista{ display:flex; flex-direction:column; gap:10px; }
+  .item{
+    background:var(--surface); border-radius:14px; padding:14px 16px; border:1px solid var(--line);
+  }
+  .item.expirada{ border-left:4px solid var(--bad); }
+  .item.ativa{ border-left:4px solid var(--good); }
+  .item.inativa{ border-left:4px solid var(--muted); }
+  .item-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .item-id{ font-family:"SFMono-Regular",Menlo,Consolas,monospace; font-size:13px; font-weight:700; color:var(--accent); }
+  .item-nome{ font-size:15px; font-weight:700; margin-top:2px; }
+  .item-email{ font-size:12px; color:var(--muted); margin-top:1px; }
+  .badges{ display:flex; gap:6px; flex-wrap:wrap; }
+  .badge{ font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:100px; }
+  .badge-trial{ background:var(--amber-soft); color:#B8790A; }
+  .badge-paga{ background:var(--accent-soft); color:var(--accent); }
+  .badge-ativa{ background:var(--good-soft); color:var(--good); }
+  .badge-inativa{ background:var(--bad-soft); color:var(--bad); }
+  .badge-vinculada{ background:var(--surface-2); color:var(--muted); }
+
+  .item-row{ display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .item-row label{ font-size:11.5px; color:var(--muted); font-weight:700; }
+  .item-row input[type=date]{
+    padding:8px 10px; border-radius:8px; border:1.5px solid var(--line); font-size:13px; font-family:inherit;
+  }
+  .switch{ position:relative; width:40px; height:22px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{
+    position:absolute; inset:0; background:var(--line); border-radius:100px; cursor:pointer; transition:0.2s;
+  }
+  .slider::before{
+    content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff;
+    border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3);
+  }
+  .switch input:checked + .slider{ background:var(--good); }
+  .switch input:checked + .slider::before{ transform:translateX(18px); }
+
+  .item-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .item-actions .btn{ font-size:12px; padding:8px 12px; }
+  .btn-accent-soft{ background:var(--accent-soft); color:var(--accent); }
+  .btn-amber-soft{ background:var(--amber-soft); color:#B8790A; }
+  .btn-bad-soft{ background:var(--bad-soft); color:var(--bad); }
+  .item-msg{ font-size:11.5px; font-weight:700; margin-top:8px; min-height:14px; }
+  .item-msg.ok{ color:var(--good); }
+  .item-msg.err{ color:var(--bad); }
+
+  .vazio{ text-align:center; padding:50px 20px; color:var(--muted); }
+  .carregando{ text-align:center; padding:50px 20px; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🔐 Painel — Minha Rota</h1>
+    <p>Acesso restrito ao administrador.</p>
+    <div class="field">
+      <label for="loginEmail">E-mail</label>
+      <input type="email" id="loginEmail" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="loginSenha">Senha</label>
+      <input type="password" id="loginSenha" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <button class="btn btn-primary" id="loginBtn">Entrar</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="painel">
+  <div class="topbar">
+    <h1>🔐 Painel — Minha Rota</h1>
+    <div class="right">
+      <button class="btn btn-ghost btn-sm" id="atualizarBtn">↻ Atualizar</button>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="toolbar">
+    <input type="text" id="buscaInput" placeholder="Buscar por nome, e-mail ou código da chave...">
+    <select id="filtroSelect">
+      <option value="todas">Todas</option>
+      <option value="ativas">Ativas</option>
+      <option value="expiradas">Expiradas</option>
+      <option value="inativas">Desativadas manualmente</option>
+      <option value="trial">Só testes grátis</option>
+      <option value="paga">Só pagas</option>
+    </select>
+  </div>
+
+  <div class="lista" id="lista">
+    <div class="carregando">Carregando chaves...</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyB2qqbVSweYDo1OcWpLEfPWStn4JRH_cPo",
+    authDomain: "app-minha-rota.firebaseapp.com",
+    projectId: "app-minha-rota",
+    storageBucket: "app-minha-rota.firebasestorage.app",
+    messagingSenderId: "451307357833",
+    appId: "1:451307357833:web:0097f6d16ce09e0bc8a858"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  const ADMIN_EMAIL = 'murilofreak@gmail.com';
+
+  const loginScreen = document.getElementById('loginScreen');
+  const painel = document.getElementById('painel');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginSenha = document.getElementById('loginSenha');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const atualizarBtn = document.getElementById('atualizarBtn');
+  const buscaInput = document.getElementById('buscaInput');
+  const filtroSelect = document.getElementById('filtroSelect');
+  const lista = document.getElementById('lista');
+  const cards = document.getElementById('cards');
+
+  let todasChaves = [];
+
+  function formatarDataBr(validadeStr){
+    if (!validadeStr) return '—';
+    const [y,m,d] = validadeStr.split('-');
+    return d + '/' + m + '/' + y;
+  }
+
+  function isExpired(validadeStr){
+    if (!validadeStr) return false;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const val = new Date(validadeStr + 'T00:00:00');
+    return val < hoje;
+  }
+
+  async function fazerLogin(){
+    loginError.textContent = '';
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Entrando...';
+    try{
+      await auth.signInWithEmailAndPassword(loginEmail.value.trim(), loginSenha.value);
+    }catch(err){
+      loginError.textContent = 'E-mail ou senha incorretos.';
+    }
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Entrar';
+  }
+  loginBtn.addEventListener('click', fazerLogin);
+  loginSenha.addEventListener('keydown', (e) => { if (e.key === 'Enter') fazerLogin(); });
+
+  logoutBtn.addEventListener('click', () => auth.signOut());
+
+  auth.onAuthStateChanged((user) => {
+    if (user && user.email === ADMIN_EMAIL){
+      loginScreen.style.display = 'none';
+      painel.style.display = 'block';
+      carregarChaves();
+    } else {
+      if (user) auth.signOut(); // logado, mas não é o admin — desloga
+      painel.style.display = 'none';
+      loginScreen.style.display = 'flex';
+    }
+  });
+
+  async function carregarChaves(){
+    lista.innerHTML = '<div class="carregando">Carregando chaves...</div>';
+    try{
+      const snap = await db.collection('chaves').get();
+      todasChaves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderCards();
+      renderLista();
+    }catch(err){
+      lista.innerHTML = '<div class="vazio">Erro ao carregar: ' + (err.message || err) + '</div>';
+    }
+  }
+  atualizarBtn.addEventListener('click', carregarChaves);
+
+  function renderCards(){
+    const total = todasChaves.length;
+    const ativas = todasChaves.filter(c => c.ativo !== false && !isExpired(c.validade)).length;
+    const expiradas = todasChaves.filter(c => isExpired(c.validade)).length;
+    const trials = todasChaves.filter(c => c.trial === true).length;
+    cards.innerHTML = `
+      <div class="card"><div class="num">${total}</div><div class="label">Total de chaves</div></div>
+      <div class="card"><div class="num" style="color:var(--good);">${ativas}</div><div class="label">Ativas</div></div>
+      <div class="card"><div class="num" style="color:var(--bad);">${expiradas}</div><div class="label">Expiradas</div></div>
+      <div class="card"><div class="num" style="color:#B8790A;">${trials}</div><div class="label">Testes grátis</div></div>
+    `;
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function renderLista(){
+    const termo = buscaInput.value.trim().toLowerCase();
+    const filtro = filtroSelect.value;
+
+    let filtradas = todasChaves.filter(c => {
+      if (termo){
+        const alvo = ((c.nome||'') + ' ' + (c.email||'') + ' ' + c.id).toLowerCase();
+        if (!alvo.includes(termo)) return false;
+      }
+      const expirada = isExpired(c.validade);
+      const ativa = c.ativo !== false && !expirada;
+      if (filtro === 'ativas' && !ativa) return false;
+      if (filtro === 'expiradas' && !expirada) return false;
+      if (filtro === 'inativas' && c.ativo !== false) return false;
+      if (filtro === 'trial' && c.trial !== true) return false;
+      if (filtro === 'paga' && c.trial === true) return false;
+      return true;
+    });
+
+    // ordena: expiradas/inativas primeiro (precisam de atenção), depois por validade
+    filtradas.sort((a, b) => {
+      const aProblema = (isExpired(a.validade) || a.ativo === false) ? 0 : 1;
+      const bProblema = (isExpired(b.validade) || b.ativo === false) ? 0 : 1;
+      if (aProblema !== bProblema) return aProblema - bProblema;
+      return (a.validade || '').localeCompare(b.validade || '');
+    });
+
+    if (filtradas.length === 0){
+      lista.innerHTML = '<div class="vazio">Nenhuma chave encontrada.</div>';
+      return;
+    }
+
+    lista.innerHTML = filtradas.map(c => {
+      const expirada = isExpired(c.validade);
+      const ativa = c.ativo !== false && !expirada;
+      const statusClasse = expirada ? 'expirada' : (c.ativo === false ? 'inativa' : 'ativa');
+      return `
+        <div class="item ${statusClasse}" data-id="${escapeHtml(c.id)}">
+          <div class="item-top">
+            <div>
+              <div class="item-id">${escapeHtml(c.id)}</div>
+              <div class="item-nome">${escapeHtml(c.nome || '(sem nome)')}</div>
+              ${c.email ? '<div class="item-email">' + escapeHtml(c.email) + '</div>' : ''}
+            </div>
+            <div class="badges">
+              <span class="badge ${c.trial ? 'badge-trial' : 'badge-paga'}">${c.trial ? '🎁 Teste' : '💳 Paga'}</span>
+              <span class="badge ${ativa ? 'badge-ativa' : 'badge-inativa'}">${expirada ? 'Expirada' : (c.ativo === false ? 'Desativada' : 'Ativa')}</span>
+              <span class="badge badge-vinculada">${c.aparelhoId ? '📱 vinculada' : '📱 livre'}</span>
+            </div>
+          </div>
+          <div class="item-row">
+            <label>Validade:</label>
+            <input type="date" class="input-validade" value="${escapeHtml(c.validade || '')}">
+            <label style="margin-left:8px;">Ativo:</label>
+            <label class="switch">
+              <input type="checkbox" class="input-ativo" ${c.ativo !== false ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="item-actions">
+            <button class="btn btn-primary btn-salvar" style="padding:8px 14px;">💾 Salvar</button>
+            <button class="btn btn-amber-soft btn-resetar">📱 Resetar aparelho</button>
+            ${c.email ? '<button class="btn btn-accent-soft btn-redefinir">✉️ Redefinir senha</button>' : ''}
+            <button class="btn btn-bad-soft btn-apagar">🗑️ Apagar chave</button>
+          </div>
+          <div class="item-msg"></div>
+        </div>
+      `;
+    }).join('');
+
+    // liga os eventos de cada cartão
+    lista.querySelectorAll('.item').forEach(itemEl => {
+      const chaveId = itemEl.getAttribute('data-id');
+      const msgEl = itemEl.querySelector('.item-msg');
+      const dados = todasChaves.find(c => c.id === chaveId);
+
+      function mostrarMsg(texto, ok){
+        msgEl.textContent = texto;
+        msgEl.className = 'item-msg ' + (ok ? 'ok' : 'err');
+      }
+
+      itemEl.querySelector('.btn-salvar').addEventListener('click', async () => {
+        const novaValidade = itemEl.querySelector('.input-validade').value;
+        const novoAtivo = itemEl.querySelector('.input-ativo').checked;
+        if (!novaValidade){ mostrarMsg('Informe uma data de validade.', false); return; }
+        try{
+          await db.collection('chaves').doc(chaveId).update({ validade: novaValidade, ativo: novoAtivo });
+          dados.validade = novaValidade; dados.ativo = novoAtivo;
+          mostrarMsg('Salvo com sucesso!', true);
+          renderCards();
+        }catch(err){ mostrarMsg('Erro ao salvar: ' + err.message, false); }
+      });
+
+      itemEl.querySelector('.btn-resetar').addEventListener('click', async () => {
+        if (!confirm('Desvincular o aparelho desta chave? A pessoa vai conseguir entrar de novo em outro aparelho.')) return;
+        try{
+          await db.collection('chaves').doc(chaveId).update({ aparelhoId: null });
+          if (dados.aparelhoId){
+            try{ await db.collection('trial_devices').doc(dados.aparelhoId).delete(); }catch(e){}
+          }
+          dados.aparelhoId = null;
+          mostrarMsg('Aparelho desvinculado!', true);
+          renderLista();
+        }catch(err){ mostrarMsg('Erro: ' + err.message, false); }
+      });
+
+      const btnRedefinir = itemEl.querySelector('.btn-redefinir');
+      if (btnRedefinir){
+        btnRedefinir.addEventListener('click', async () => {
+          try{
+            await auth.sendPasswordResetEmail(dados.email);
+            mostrarMsg('E-mail de redefinição enviado para ' + dados.email, true);
+          }catch(err){ mostrarMsg('Erro ao enviar: ' + err.message, false); }
+        });
+      }
+
+      itemEl.querySelector('.btn-apagar').addEventListener('click', async () => {
+        if (!confirm('Apagar esta chave definitivamente? Isso não pode ser desfeito.')) return;
+        try{
+          await db.collection('chaves').doc(chaveId).delete();
+          todasChaves = todasChaves.filter(c => c.id !== chaveId);
+          renderCards();
+          renderLista();
+        }catch(err){ mostrarMsg('Erro ao apagar: ' + err.message, false); }
+      });
+    });
+  }
+
+  buscaInput.addEventListener('input', renderLista);
+  filtroSelect.addEventListener('change', renderLista);
+})();
+</script>
+</body>
+</html>
