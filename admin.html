@@ -105,10 +105,11 @@
   .col-chave{ font-family:"SFMono-Regular",Menlo,Consolas,monospace; font-size:12px; font-weight:700; color:var(--accent); }
   .col-nome{ font-weight:700; }
   .col-email{ font-size:12px; color:var(--muted); margin-top:1px; }
-  .status-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
-  .status-dot.ativa{ background:var(--good); }
-  .status-dot.expirada{ background:var(--bad); }
-  .status-dot.inativa{ background:var(--muted-2); }
+  .badge-status-ativa{ background:var(--good-soft); color:var(--good); }
+  .badge-status-expirada{ background:var(--bad-soft); color:var(--bad); }
+  .badge-status-inativa{ background:var(--bg); color:var(--muted); }
+  tbody tr.linha-dados.linha-expirada{ background:var(--bad-soft); }
+  tbody tr.linha-dados.linha-expirada:hover{ background:#FBDEDC; }
   .badge{ font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:100px; white-space:nowrap; }
   .badge-trial{ background:var(--amber-soft); color:var(--amber); }
   .badge-paga{ background:var(--accent-soft); color:var(--accent); }
@@ -138,6 +139,7 @@
   .btn-accent-soft{ background:var(--accent-soft); color:var(--accent); }
   .btn-amber-soft{ background:var(--amber-soft); color:var(--amber); }
   .btn-bad-soft{ background:var(--bad-soft); color:var(--bad); }
+  .btn-good-soft{ background:var(--good-soft); color:var(--good); }
   .edicao-msg{ font-size:12px; font-weight:700; margin-top:10px; min-height:14px; }
   .edicao-msg.ok{ color:var(--good); }
   .edicao-msg.err{ color:var(--bad); }
@@ -158,6 +160,18 @@
   .modal-card h2{ font-size:17px; margin:0 0 4px; }
   .modal-sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; line-height:1.5; }
   .field-row-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .copy-display{
+    padding:12px 14px; border-radius:10px; background:var(--accent-soft); border:1.5px dashed var(--accent);
+    font-size:15px; font-weight:700; color:var(--accent); cursor:pointer; text-align:center;
+    font-family:"SFMono-Regular",Menlo,Consolas,monospace;
+  }
+  .copy-display:active{ opacity:0.75; }
+  .field textarea{
+    width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line);
+    background:var(--bg); font-size:13.5px; color:var(--ink); font-family:inherit; resize:vertical; line-height:1.6;
+  }
+  .field textarea:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .chave-toggle{ cursor:pointer; user-select:none; }
   .modal-actions{ display:flex; gap:10px; margin-top:18px; }
 
   @media (max-width:720px){
@@ -273,6 +287,32 @@
           <tr><td colspan="7"><div class="carregando">Carregando chaves...</div></td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="relatorioOverlay">
+  <div class="modal-card">
+    <h2>📤 Enviar acesso pro cliente</h2>
+    <p class="modal-sub">Toque no nome ou na chave pra copiar só aquilo, ou copie a mensagem pronta pra colar direto no WhatsApp.</p>
+
+    <div class="field">
+      <label>Nome</label>
+      <div class="copy-display" id="relatorioNome" title="Toque para copiar"></div>
+    </div>
+    <div class="field">
+      <label>Chave de acesso</label>
+      <div class="copy-display" id="relatorioChave" title="Toque para copiar"></div>
+    </div>
+    <div class="field">
+      <label>Mensagem pronta (edite se quiser antes de copiar)</label>
+      <textarea id="relatorioTexto" rows="7"></textarea>
+    </div>
+
+    <div class="login-error" id="relatorioMsg" style="color:var(--good);"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="relatorioFecharBtn" style="flex:1;">Fechar</button>
+      <button class="btn btn-primary" id="relatorioCopiarBtn" style="flex:2;">📋 Copiar mensagem</button>
     </div>
   </div>
 </div>
@@ -459,15 +499,15 @@
       const statusClasse = expirada ? 'expirada' : (c.ativo === false ? 'inativa' : 'ativa');
       const chaveCurta = c.id.length > 12 ? c.id.slice(0,10) + '…' : c.id;
       return (
-        '<tr class="linha-dados" data-id="' + escapeHtml(c.id) + '">' +
-          '<td class="col-chave" data-label="Chave">' + escapeHtml(chaveCurta) + '</td>' +
+        '<tr class="linha-dados linha-' + statusClasse + '" data-id="' + escapeHtml(c.id) + '">' +
+          '<td class="col-chave" data-label="Chave"><span class="chave-toggle" data-chave-real="' + escapeHtml(c.id) + '" data-chave-curta="' + escapeHtml(chaveCurta) + '" title="Toque pra ver a chave">👁️</span></td>' +
           '<td data-label="Cliente">' +
             '<div class="col-nome">' + escapeHtml(c.nome || '(sem nome)') + '</div>' +
             (c.email ? '<div class="col-email">' + escapeHtml(c.email) + (c.email === ADMIN_EMAIL ? ' ⚠️ seu e-mail de admin' : '') + '</div>' : '') +
           '</td>' +
           '<td data-label="Tipo"><span class="badge ' + (c.trial ? 'badge-trial' : 'badge-paga') + '">' + (c.trial ? '🎁 Teste' : '💳 Paga') + '</span></td>' +
           '<td data-label="Validade">' + formatarDataBr(c.validade) + '</td>' +
-          '<td data-label="Status"><span class="status-dot ' + statusClasse + '"></span>' + statusTexto + '</td>' +
+          '<td data-label="Status"><span class="badge badge-status-' + statusClasse + '">' + statusTexto + '</span></td>' +
           '<td data-label="Aparelho">' + (c.aparelhoId ? 'Vinculado' : '<span style="color:var(--muted);">Livre</span>') + '</td>' +
           '<td class="acoes-cell" data-label=""><button class="icon-btn btn-editar" title="Editar">✏️ Editar</button></td>' +
         '</tr>' +
@@ -487,6 +527,7 @@
               '</div>' +
               '<div class="edicao-acoes">' +
                 '<button class="btn btn-primary btn-salvar" style="padding:9px 16px;">💾 Salvar</button>' +
+                '<button class="btn btn-good-soft btn-relatorio">📤 Enviar acesso</button>' +
                 '<button class="btn btn-amber-soft btn-resetar">📱 Resetar aparelho</button>' +
                 (c.email && c.email !== ADMIN_EMAIL ? '<button class="btn btn-accent-soft btn-redefinir">✉️ Redefinir senha</button>' : '') +
                 '<button class="btn btn-bad-soft btn-apagar">🗑️ Apagar chave</button>' +
@@ -506,7 +547,7 @@
       const chaveId = tr.getAttribute('data-id');
       tr.querySelector('.btn-editar').addEventListener('click', function(){ alternarEdicao(chaveId); });
       tr.addEventListener('click', function(ev){
-        if (ev.target.closest('.btn-editar')) return;
+        if (ev.target.closest('.btn-editar') || ev.target.closest('.chave-toggle')) return;
         alternarEdicao(chaveId);
       });
     });
@@ -547,6 +588,10 @@
           linhaAbertaId = chaveId;
           renderTabela();
         }catch(err){ mostrarMsg('Erro: ' + err.message, false); }
+      });
+
+      tr.querySelector('.btn-relatorio').addEventListener('click', function(){
+        abrirRelatorio(dados.nome || '(sem nome)', chaveId);
       });
 
       const btnRedefinir = tr.querySelector('.btn-redefinir');
@@ -680,6 +725,7 @@
       await carregarChaves();
       buscaInput.value = chave;
       renderTabela();
+      abrirRelatorio(nome, chave);
     }catch(err){
       novoMsg.textContent = 'erro ao criar: ' + err.message;
     }
@@ -689,6 +735,81 @@
 
   novoChave.addEventListener('input', function(){
     novoChave.value = novoChave.value.toUpperCase();
+  });
+
+  // ---------- Copiar texto (com fallback pra navegadores mais antigos) ----------
+  function copiarTexto(texto){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(texto);
+    }
+    const temp = document.createElement('textarea');
+    temp.value = texto;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.focus();
+    temp.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(temp);
+    return Promise.resolve();
+  }
+
+  // ---------- Ícone de olho: mostra/esconde a chave na lista ----------
+  tbody.addEventListener('click', function(ev){
+    const toggle = ev.target.closest('.chave-toggle');
+    if (!toggle) return;
+    ev.stopPropagation(); // não deixa isso também abrir a linha de edição
+    const revelado = toggle.getAttribute('data-revelado') === '1';
+    if (revelado){
+      toggle.textContent = '👁️';
+      toggle.setAttribute('data-revelado', '0');
+    } else {
+      toggle.textContent = toggle.getAttribute('data-chave-real');
+      toggle.setAttribute('data-revelado', '1');
+    }
+  });
+
+  // ---------- Modal "Enviar acesso" ----------
+  const relatorioOverlay = document.getElementById('relatorioOverlay');
+  const relatorioNome = document.getElementById('relatorioNome');
+  const relatorioChave = document.getElementById('relatorioChave');
+  const relatorioTexto = document.getElementById('relatorioTexto');
+  const relatorioMsg = document.getElementById('relatorioMsg');
+  const relatorioFecharBtn = document.getElementById('relatorioFecharBtn');
+  const relatorioCopiarBtn = document.getElementById('relatorioCopiarBtn');
+
+  function montarMensagemAcesso(nome, chave){
+    return 'Olá, ' + nome + '! 🎉\n\n' +
+      'Seu acesso ao *Minha Rota* está liberado.\n\n' +
+      '👤 Nome: ' + nome + '\n' +
+      '🔑 Chave de acesso: ' + chave + '\n\n' +
+      'É só abrir o app, informar seu nome e essa chave, e pronto! 🚀';
+  }
+
+  function abrirRelatorio(nome, chave){
+    relatorioNome.textContent = nome;
+    relatorioChave.textContent = chave;
+    relatorioTexto.value = montarMensagemAcesso(nome, chave);
+    relatorioMsg.textContent = '';
+    relatorioOverlay.classList.add('show');
+  }
+
+  relatorioFecharBtn.addEventListener('click', function(){ relatorioOverlay.classList.remove('show'); });
+
+  relatorioNome.addEventListener('click', function(){
+    copiarTexto(relatorioNome.textContent);
+    relatorioMsg.textContent = 'Nome copiado!';
+    setTimeout(function(){ relatorioMsg.textContent = ''; }, 2000);
+  });
+  relatorioChave.addEventListener('click', function(){
+    copiarTexto(relatorioChave.textContent);
+    relatorioMsg.textContent = 'Chave copiada!';
+    setTimeout(function(){ relatorioMsg.textContent = ''; }, 2000);
+  });
+  relatorioCopiarBtn.addEventListener('click', function(){
+    copiarTexto(relatorioTexto.value);
+    relatorioMsg.textContent = 'Mensagem copiada — já pode colar no WhatsApp!';
+    setTimeout(function(){ relatorioMsg.textContent = ''; }, 2500);
   });
 })();
 </script>
