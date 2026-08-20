@@ -6,122 +6,201 @@
 <title>Painel — Minha Rota</title>
 <style>
   :root{
-    --accent:#4F5DFF; --accent-soft:#E9EBFF; --ink:#171B2E; --muted:#7A8199;
-    --surface:#ffffff; --surface-2:#F4F6FB; --line:#E4E7F1;
+    --navy:#0B1030; --navy-2:#151B3D;
+    --accent:#4F5DFF; --accent-soft:#EEF0FF; --ink:#171B2E; --muted:#7A8199; --muted-2:#B0B5C6;
+    --surface:#ffffff; --bg:#F5F6FA; --line:#E7E9F2;
     --good:#17B678; --good-soft:#E4F9F0; --bad:#F0473E; --bad-soft:#FDECEB;
-    --amber:#F5A524; --amber-soft:#FFF4E0;
-    --radius:14px;
+    --amber:#DB9B12; --amber-soft:#FFF6E2;
+    --radius:12px;
   }
   *{ box-sizing:border-box; }
   body{
     margin:0; font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-    background:var(--surface-2); color:var(--ink); -webkit-font-smoothing:antialiased;
+    background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased;
   }
 
-  /* ---------- Tela de login ---------- */
   #loginScreen{
     min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:radial-gradient(circle at 30% 20%, #1B2358, var(--navy) 60%);
   }
   .login-box{
-    background:var(--surface); border-radius:20px; padding:32px 28px; width:100%; max-width:360px;
-    box-shadow:0 20px 50px -20px rgba(23,27,46,0.25);
+    background:var(--surface); border-radius:20px; padding:36px 30px; width:100%; max-width:370px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.5);
+  }
+  .login-box .lock{
+    width:46px; height:46px; border-radius:13px; background:linear-gradient(155deg,var(--accent),#7B85FF);
+    display:flex; align-items:center; justify-content:center; font-size:21px; margin-bottom:14px;
   }
   .login-box h1{ font-size:19px; margin:0 0 4px; }
-  .login-box p{ font-size:13px; color:var(--muted); margin:0 0 22px; }
+  .login-box p{ font-size:13px; color:var(--muted); margin:0 0 24px; }
   .field{ margin-bottom:14px; text-align:left; }
-  .field label{ display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .field label{ display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.03em; }
   .field input{
     width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line);
-    background:var(--surface-2); font-size:15px; color:var(--ink); font-family:inherit;
+    background:var(--bg); font-size:15px; color:var(--ink); font-family:inherit;
   }
   .field input:focus{ outline:none; border-color:var(--accent); background:#fff; }
   .btn{
-    border:none; border-radius:10px; padding:12px 16px; font-size:14px; font-weight:700;
-    cursor:pointer; font-family:inherit;
+    border:none; border-radius:10px; padding:11px 16px; font-size:13.5px; font-weight:700;
+    cursor:pointer; font-family:inherit; transition:opacity 0.15s;
   }
-  .btn-primary{ background:var(--accent); color:#fff; width:100%; }
+  .btn:hover{ opacity:0.88; }
+  .btn-primary{ background:var(--accent); color:#fff; width:100%; padding:13px; font-size:14.5px; }
   .btn-primary:disabled{ opacity:0.6; cursor:default; }
-  .login-error{ color:var(--bad); font-size:12.5px; font-weight:600; margin-top:10px; min-height:16px; }
+  .login-error{ color:var(--bad); font-size:12.5px; font-weight:600; margin-top:12px; min-height:16px; }
 
-  /* ---------- Painel ---------- */
-  #painel{ display:none; max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  #painel{ display:none; min-height:100vh; }
   .topbar{
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; gap:10px; flex-wrap:wrap;
+    background:var(--navy); color:#fff; padding:16px 24px; display:flex; align-items:center;
+    justify-content:space-between; gap:12px; flex-wrap:wrap;
   }
-  .topbar h1{ font-size:18px; margin:0; }
+  .topbar .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:15.5px; }
+  .topbar .brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--good); }
   .topbar .right{ display:flex; gap:8px; align-items:center; }
-  .btn-ghost{ background:var(--surface); border:1.5px solid var(--line); color:var(--ink); }
-  .btn-sm{ padding:8px 12px; font-size:12.5px; }
+  .btn-ghost-dark{ background:rgba(255,255,255,0.1); color:#fff; }
+  .btn-ghost-dark:hover{ background:rgba(255,255,255,0.18); opacity:1; }
+  .btn-sm{ padding:8px 13px; font-size:12.5px; }
 
-  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:18px; }
-  .card{ background:var(--surface); border-radius:12px; padding:14px; text-align:center; }
-  .card .num{ font-size:22px; font-weight:800; }
-  .card .label{ font-size:11px; color:var(--muted); font-weight:600; margin-top:2px; }
+  .content{ max-width:1200px; margin:0 auto; padding:22px 20px 60px; }
 
-  .toolbar{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-  .toolbar input{
-    flex:1; min-width:180px; padding:11px 14px; border-radius:10px; border:1.5px solid var(--line);
-    font-size:14px; font-family:inherit; background:var(--surface);
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .card{
+    background:var(--surface); border-radius:var(--radius); padding:16px 18px;
+    border:1px solid var(--line); display:flex; align-items:center; gap:12px;
   }
-  .toolbar select{
-    padding:11px 12px; border-radius:10px; border:1.5px solid var(--line); font-size:13px;
-    background:var(--surface); font-family:inherit;
-  }
+  .card .icon{ font-size:22px; width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .card .num{ font-size:21px; font-weight:800; line-height:1.1; }
+  .card .label{ font-size:11.5px; color:var(--muted); font-weight:600; margin-top:1px; }
 
-  .lista{ display:flex; flex-direction:column; gap:10px; }
-  .item{
-    background:var(--surface); border-radius:14px; padding:14px 16px; border:1px solid var(--line);
+  .toolbar{
+    display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:10px;
   }
-  .item.expirada{ border-left:4px solid var(--bad); }
-  .item.ativa{ border-left:4px solid var(--good); }
-  .item.inativa{ border-left:4px solid var(--muted); }
-  .item-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
-  .item-id{ font-family:"SFMono-Regular",Menlo,Consolas,monospace; font-size:13px; font-weight:700; color:var(--accent); }
-  .item-nome{ font-size:15px; font-weight:700; margin-top:2px; }
-  .item-email{ font-size:12px; color:var(--muted); margin-top:1px; }
-  .badges{ display:flex; gap:6px; flex-wrap:wrap; }
-  .badge{ font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:100px; }
-  .badge-trial{ background:var(--amber-soft); color:#B8790A; }
+  .toolbar input[type=text]{
+    flex:1; min-width:200px; padding:10px 14px; border-radius:9px; border:1.5px solid var(--line);
+    font-size:13.5px; font-family:inherit; background:var(--bg);
+  }
+  .toolbar input[type=text]:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .chip-group{ display:flex; gap:6px; flex-wrap:wrap; }
+  .chip{
+    padding:8px 13px; border-radius:100px; font-size:12px; font-weight:700; cursor:pointer;
+    background:var(--bg); color:var(--muted); border:1.5px solid transparent; white-space:nowrap;
+  }
+  .chip.active{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+
+  .table-wrap{
+    background:var(--surface); border-radius:var(--radius); border:1px solid var(--line);
+    overflow:hidden;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  thead th{
+    text-align:left; padding:12px 14px; font-size:11px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.03em; background:var(--bg); border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody tr{ border-bottom:1px solid var(--line); }
+  tbody tr:last-child{ border-bottom:none; }
+  tbody tr.linha-dados:hover{ background:#FAFBFF; cursor:pointer; }
+  tbody td{ padding:12px 14px; vertical-align:middle; }
+  .col-chave{ font-family:"SFMono-Regular",Menlo,Consolas,monospace; font-size:12px; font-weight:700; color:var(--accent); }
+  .col-nome{ font-weight:700; }
+  .col-email{ font-size:12px; color:var(--muted); margin-top:1px; }
+  .status-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .status-dot.ativa{ background:var(--good); }
+  .status-dot.expirada{ background:var(--bad); }
+  .status-dot.inativa{ background:var(--muted-2); }
+  .badge{ font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:100px; white-space:nowrap; }
+  .badge-trial{ background:var(--amber-soft); color:var(--amber); }
   .badge-paga{ background:var(--accent-soft); color:var(--accent); }
-  .badge-ativa{ background:var(--good-soft); color:var(--good); }
-  .badge-inativa{ background:var(--bad-soft); color:var(--bad); }
-  .badge-vinculada{ background:var(--surface-2); color:var(--muted); }
+  .icon-btn{
+    width:30px; height:30px; border-radius:8px; border:none; background:var(--bg); cursor:pointer;
+    font-size:14px; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;
+  }
+  .icon-btn:hover{ background:var(--accent-soft); }
+  .icon-btn.perigo:hover{ background:var(--bad-soft); }
+  .acoes-cell{ white-space:nowrap; text-align:right; }
 
-  .item-row{ display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap; }
-  .item-row label{ font-size:11.5px; color:var(--muted); font-weight:700; }
-  .item-row input[type=date]{
-    padding:8px 10px; border-radius:8px; border:1.5px solid var(--line); font-size:13px; font-family:inherit;
+  tr.linha-edicao{ display:none; }
+  tr.linha-edicao.show{ display:table-row; }
+  tr.linha-edicao td{ background:var(--bg); padding:16px 20px; border-bottom:1px solid var(--line); }
+  .edicao-grid{ display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; }
+  .edicao-campo label{ display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.03em; }
+  .edicao-campo input[type=date]{
+    padding:9px 11px; border-radius:8px; border:1.5px solid var(--line); font-size:13.5px; font-family:inherit; background:#fff;
   }
-  .switch{ position:relative; width:40px; height:22px; flex-shrink:0; }
+  .switch{ position:relative; width:40px; height:22px; flex-shrink:0; display:inline-block; }
   .switch input{ opacity:0; width:0; height:0; }
-  .slider{
-    position:absolute; inset:0; background:var(--line); border-radius:100px; cursor:pointer; transition:0.2s;
-  }
-  .slider::before{
-    content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff;
-    border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3);
-  }
+  .slider{ position:absolute; inset:0; background:var(--line); border-radius:100px; cursor:pointer; transition:0.2s; }
+  .slider::before{ content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
   .switch input:checked + .slider{ background:var(--good); }
   .switch input:checked + .slider::before{ transform:translateX(18px); }
-
-  .item-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-  .item-actions .btn{ font-size:12px; padding:8px 12px; }
+  .edicao-acoes{ display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; }
   .btn-accent-soft{ background:var(--accent-soft); color:var(--accent); }
-  .btn-amber-soft{ background:var(--amber-soft); color:#B8790A; }
+  .btn-amber-soft{ background:var(--amber-soft); color:var(--amber); }
   .btn-bad-soft{ background:var(--bad-soft); color:var(--bad); }
-  .item-msg{ font-size:11.5px; font-weight:700; margin-top:8px; min-height:14px; }
-  .item-msg.ok{ color:var(--good); }
-  .item-msg.err{ color:var(--bad); }
+  .edicao-msg{ font-size:12px; font-weight:700; margin-top:10px; min-height:14px; }
+  .edicao-msg.ok{ color:var(--good); }
+  .edicao-msg.err{ color:var(--bad); }
 
-  .vazio{ text-align:center; padding:50px 20px; color:var(--muted); }
-  .carregando{ text-align:center; padding:50px 20px; color:var(--muted); font-size:14px; }
+  .vazio, .carregando{ text-align:center; padding:60px 20px; color:var(--muted); font-size:14px; }
+
+  @media (max-width:720px){
+    .content{ padding:14px 10px 60px; }
+    .topbar{ padding:14px 16px; }
+    .cards{ grid-template-columns:repeat(2,1fr); gap:8px; }
+    .card{ padding:12px 13px; }
+    .card .icon{ width:36px; height:36px; font-size:18px; }
+    .card .num{ font-size:18px; }
+    .toolbar{ padding:8px; }
+    .chip-group{ width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:2px; }
+
+    .table-wrap{ background:transparent; border:none; }
+    table, tbody{ display:block; width:100%; }
+    thead{ display:none; }
+
+    tbody tr.linha-dados{
+      display:block; background:var(--surface); border:1px solid var(--line);
+      border-radius:var(--radius); padding:14px; margin-bottom:10px; cursor:pointer;
+    }
+    tbody tr.linha-dados td{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:6px 0; border:none;
+    }
+    tbody tr.linha-dados td[data-label]:not([data-label=""])::before{
+      content:attr(data-label); font-size:10px; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:0.03em; flex-shrink:0;
+    }
+    /* Chave + Cliente viram o "cabeçalho" do cartão — maiores, sem rótulo, empilhados */
+    tbody tr.linha-dados td.col-chave{
+      display:block; font-size:13px; padding:0 0 2px;
+    }
+    tbody tr.linha-dados td.col-chave::before{ content:none !important; }
+    tbody tr.linha-dados td:nth-child(2){
+      display:block; padding:0 0 10px; border-bottom:1px solid var(--line); margin-bottom:6px;
+    }
+    tbody tr.linha-dados td:nth-child(2)::before{ content:none !important; }
+    tbody tr.linha-dados td.acoes-cell{
+      padding-top:10px; margin-top:2px; border-top:1px solid var(--line); justify-content:flex-end;
+    }
+    tbody tr.linha-dados td.acoes-cell .icon-btn{
+      width:auto; height:38px; padding:0 16px; font-size:13px; font-weight:700; gap:6px;
+      background:var(--accent-soft); color:var(--accent);
+    }
+
+    tr.linha-edicao td{ padding:14px !important; border-radius:var(--radius); margin:-4px 0 10px; }
+    tr.linha-edicao.show{ display:block; }
+    .edicao-grid{ gap:14px; }
+    .edicao-acoes{ width:100%; margin-left:0; }
+    .edicao-acoes .btn{ flex:1; min-width:calc(50% - 4px); }
+  }
 </style>
 </head>
 <body>
 
 <div id="loginScreen">
   <div class="login-box">
-    <h1>🔐 Painel — Minha Rota</h1>
+    <div class="lock">🔐</div>
+    <h1>Painel — Minha Rota</h1>
     <p>Acesso restrito ao administrador.</p>
     <div class="field">
       <label for="loginEmail">E-mail</label>
@@ -138,29 +217,46 @@
 
 <div id="painel">
   <div class="topbar">
-    <h1>🔐 Painel — Minha Rota</h1>
+    <div class="brand"><span class="dot"></span> Painel — Minha Rota</div>
     <div class="right">
-      <button class="btn btn-ghost btn-sm" id="atualizarBtn">↻ Atualizar</button>
-      <button class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+      <button class="btn btn-ghost-dark btn-sm" id="atualizarBtn">↻ Atualizar</button>
+      <button class="btn btn-ghost-dark btn-sm" id="logoutBtn">Sair</button>
     </div>
   </div>
 
-  <div class="cards" id="cards"></div>
+  <div class="content">
+    <div class="cards" id="cards"></div>
 
-  <div class="toolbar">
-    <input type="text" id="buscaInput" placeholder="Buscar por nome, e-mail ou código da chave...">
-    <select id="filtroSelect">
-      <option value="todas">Todas</option>
-      <option value="ativas">Ativas</option>
-      <option value="expiradas">Expiradas</option>
-      <option value="inativas">Desativadas manualmente</option>
-      <option value="trial">Só testes grátis</option>
-      <option value="paga">Só pagas</option>
-    </select>
-  </div>
+    <div class="toolbar">
+      <input type="text" id="buscaInput" placeholder="Buscar por nome, e-mail ou código da chave...">
+      <div class="chip-group" id="filtroChips">
+        <span class="chip active" data-filtro="todas">Todas</span>
+        <span class="chip" data-filtro="ativas">Ativas</span>
+        <span class="chip" data-filtro="expiradas">Expiradas</span>
+        <span class="chip" data-filtro="inativas">Desativadas</span>
+        <span class="chip" data-filtro="trial">Teste grátis</span>
+        <span class="chip" data-filtro="paga">Pagas</span>
+      </div>
+    </div>
 
-  <div class="lista" id="lista">
-    <div class="carregando">Carregando chaves...</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Chave</th>
+            <th>Cliente</th>
+            <th>Tipo</th>
+            <th>Validade</th>
+            <th>Status</th>
+            <th>Aparelho</th>
+            <th style="text-align:right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="7"><div class="carregando">Carregando chaves...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -192,16 +288,18 @@
   const logoutBtn = document.getElementById('logoutBtn');
   const atualizarBtn = document.getElementById('atualizarBtn');
   const buscaInput = document.getElementById('buscaInput');
-  const filtroSelect = document.getElementById('filtroSelect');
-  const lista = document.getElementById('lista');
+  const filtroChips = document.getElementById('filtroChips');
+  const tbody = document.getElementById('tbody');
   const cards = document.getElementById('cards');
 
   let todasChaves = [];
+  let filtroAtual = 'todas';
+  let linhaAbertaId = null;
 
   function formatarDataBr(validadeStr){
     if (!validadeStr) return '—';
-    const [y,m,d] = validadeStr.split('-');
-    return d + '/' + m + '/' + y;
+    const partes = validadeStr.split('-');
+    return partes[2] + '/' + partes[1] + '/' + partes[0];
   }
 
   function isExpired(validadeStr){
@@ -225,7 +323,6 @@
   }
   loginBtn.addEventListener('click', fazerLogin);
   loginSenha.addEventListener('keydown', (e) => { if (e.key === 'Enter') fazerLogin(); });
-
   logoutBtn.addEventListener('click', () => auth.signOut());
 
   auth.onAuthStateChanged((user) => {
@@ -234,36 +331,35 @@
       painel.style.display = 'block';
       carregarChaves();
     } else {
-      if (user) auth.signOut(); // logado, mas não é o admin — desloga
+      if (user) auth.signOut();
       painel.style.display = 'none';
       loginScreen.style.display = 'flex';
     }
   });
 
   async function carregarChaves(){
-    lista.innerHTML = '<div class="carregando">Carregando chaves...</div>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="carregando">Carregando chaves...</div></td></tr>';
     try{
       const snap = await db.collection('chaves').get();
-      todasChaves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      todasChaves = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
       renderCards();
-      renderLista();
+      renderTabela();
     }catch(err){
-      lista.innerHTML = '<div class="vazio">Erro ao carregar: ' + (err.message || err) + '</div>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="vazio">Erro ao carregar: ' + (err.message || err) + '</div></td></tr>';
     }
   }
   atualizarBtn.addEventListener('click', carregarChaves);
 
   function renderCards(){
     const total = todasChaves.length;
-    const ativas = todasChaves.filter(c => c.ativo !== false && !isExpired(c.validade)).length;
-    const expiradas = todasChaves.filter(c => isExpired(c.validade)).length;
-    const trials = todasChaves.filter(c => c.trial === true).length;
-    cards.innerHTML = `
-      <div class="card"><div class="num">${total}</div><div class="label">Total de chaves</div></div>
-      <div class="card"><div class="num" style="color:var(--good);">${ativas}</div><div class="label">Ativas</div></div>
-      <div class="card"><div class="num" style="color:var(--bad);">${expiradas}</div><div class="label">Expiradas</div></div>
-      <div class="card"><div class="num" style="color:#B8790A;">${trials}</div><div class="label">Testes grátis</div></div>
-    `;
+    const ativas = todasChaves.filter(function(c){ return c.ativo !== false && !isExpired(c.validade); }).length;
+    const expiradas = todasChaves.filter(function(c){ return isExpired(c.validade); }).length;
+    const trials = todasChaves.filter(function(c){ return c.trial === true; }).length;
+    cards.innerHTML =
+      '<div class="card"><div class="icon" style="background:var(--accent-soft);">📋</div><div><div class="num">' + total + '</div><div class="label">Total de chaves</div></div></div>' +
+      '<div class="card"><div class="icon" style="background:var(--good-soft);">✅</div><div><div class="num" style="color:var(--good);">' + ativas + '</div><div class="label">Ativas</div></div></div>' +
+      '<div class="card"><div class="icon" style="background:var(--bad-soft);">⏰</div><div><div class="num" style="color:var(--bad);">' + expiradas + '</div><div class="label">Expiradas</div></div></div>' +
+      '<div class="card"><div class="icon" style="background:var(--amber-soft);">🎁</div><div><div class="num" style="color:var(--amber);">' + trials + '</div><div class="label">Testes grátis</div></div></div>';
   }
 
   function escapeHtml(str){
@@ -272,27 +368,25 @@
     return d.innerHTML;
   }
 
-  function renderLista(){
+  function renderTabela(){
     const termo = buscaInput.value.trim().toLowerCase();
-    const filtro = filtroSelect.value;
 
-    let filtradas = todasChaves.filter(c => {
+    let filtradas = todasChaves.filter(function(c){
       if (termo){
         const alvo = ((c.nome||'') + ' ' + (c.email||'') + ' ' + c.id).toLowerCase();
-        if (!alvo.includes(termo)) return false;
+        if (alvo.indexOf(termo) === -1) return false;
       }
       const expirada = isExpired(c.validade);
       const ativa = c.ativo !== false && !expirada;
-      if (filtro === 'ativas' && !ativa) return false;
-      if (filtro === 'expiradas' && !expirada) return false;
-      if (filtro === 'inativas' && c.ativo !== false) return false;
-      if (filtro === 'trial' && c.trial !== true) return false;
-      if (filtro === 'paga' && c.trial === true) return false;
+      if (filtroAtual === 'ativas' && !ativa) return false;
+      if (filtroAtual === 'expiradas' && !expirada) return false;
+      if (filtroAtual === 'inativas' && c.ativo !== false) return false;
+      if (filtroAtual === 'trial' && c.trial !== true) return false;
+      if (filtroAtual === 'paga' && c.trial === true) return false;
       return true;
     });
 
-    // ordena: expiradas/inativas primeiro (precisam de atenção), depois por validade
-    filtradas.sort((a, b) => {
+    filtradas.sort(function(a, b){
       const aProblema = (isExpired(a.validade) || a.ativo === false) ? 0 : 1;
       const bProblema = (isExpired(b.validade) || b.ativo === false) ? 0 : 1;
       if (aProblema !== bProblema) return aProblema - bProblema;
@@ -300,72 +394,93 @@
     });
 
     if (filtradas.length === 0){
-      lista.innerHTML = '<div class="vazio">Nenhuma chave encontrada.</div>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="vazio">Nenhuma chave encontrada.</div></td></tr>';
       return;
     }
 
-    lista.innerHTML = filtradas.map(c => {
+    tbody.innerHTML = filtradas.map(function(c){
       const expirada = isExpired(c.validade);
-      const ativa = c.ativo !== false && !expirada;
+      const statusTexto = expirada ? 'Expirada' : (c.ativo === false ? 'Desativada' : 'Ativa');
       const statusClasse = expirada ? 'expirada' : (c.ativo === false ? 'inativa' : 'ativa');
-      return `
-        <div class="item ${statusClasse}" data-id="${escapeHtml(c.id)}">
-          <div class="item-top">
-            <div>
-              <div class="item-id">${escapeHtml(c.id)}</div>
-              <div class="item-nome">${escapeHtml(c.nome || '(sem nome)')}</div>
-              ${c.email ? '<div class="item-email">' + escapeHtml(c.email) + '</div>' : ''}
-            </div>
-            <div class="badges">
-              <span class="badge ${c.trial ? 'badge-trial' : 'badge-paga'}">${c.trial ? '🎁 Teste' : '💳 Paga'}</span>
-              <span class="badge ${ativa ? 'badge-ativa' : 'badge-inativa'}">${expirada ? 'Expirada' : (c.ativo === false ? 'Desativada' : 'Ativa')}</span>
-              <span class="badge badge-vinculada">${c.aparelhoId ? '📱 vinculada' : '📱 livre'}</span>
-            </div>
-          </div>
-          <div class="item-row">
-            <label>Validade:</label>
-            <input type="date" class="input-validade" value="${escapeHtml(c.validade || '')}">
-            <label style="margin-left:8px;">Ativo:</label>
-            <label class="switch">
-              <input type="checkbox" class="input-ativo" ${c.ativo !== false ? 'checked' : ''}>
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="item-actions">
-            <button class="btn btn-primary btn-salvar" style="padding:8px 14px;">💾 Salvar</button>
-            <button class="btn btn-amber-soft btn-resetar">📱 Resetar aparelho</button>
-            ${c.email ? '<button class="btn btn-accent-soft btn-redefinir">✉️ Redefinir senha</button>' : ''}
-            <button class="btn btn-bad-soft btn-apagar">🗑️ Apagar chave</button>
-          </div>
-          <div class="item-msg"></div>
-        </div>
-      `;
+      const chaveCurta = c.id.length > 12 ? c.id.slice(0,10) + '…' : c.id;
+      return (
+        '<tr class="linha-dados" data-id="' + escapeHtml(c.id) + '">' +
+          '<td class="col-chave" data-label="Chave">' + escapeHtml(chaveCurta) + '</td>' +
+          '<td data-label="Cliente">' +
+            '<div class="col-nome">' + escapeHtml(c.nome || '(sem nome)') + '</div>' +
+            (c.email ? '<div class="col-email">' + escapeHtml(c.email) + '</div>' : '') +
+          '</td>' +
+          '<td data-label="Tipo"><span class="badge ' + (c.trial ? 'badge-trial' : 'badge-paga') + '">' + (c.trial ? '🎁 Teste' : '💳 Paga') + '</span></td>' +
+          '<td data-label="Validade">' + formatarDataBr(c.validade) + '</td>' +
+          '<td data-label="Status"><span class="status-dot ' + statusClasse + '"></span>' + statusTexto + '</td>' +
+          '<td data-label="Aparelho">' + (c.aparelhoId ? 'Vinculado' : '<span style="color:var(--muted);">Livre</span>') + '</td>' +
+          '<td class="acoes-cell" data-label=""><button class="icon-btn btn-editar" title="Editar">✏️ Editar</button></td>' +
+        '</tr>' +
+        '<tr class="linha-edicao" data-id-edicao="' + escapeHtml(c.id) + '">' +
+          '<td colspan="7">' +
+            '<div class="edicao-grid">' +
+              '<div class="edicao-campo">' +
+                '<label>Validade</label>' +
+                '<input type="date" class="input-validade" value="' + escapeHtml(c.validade || '') + '">' +
+              '</div>' +
+              '<div class="edicao-campo">' +
+                '<label>Ativo</label>' +
+                '<label class="switch">' +
+                  '<input type="checkbox" class="input-ativo" ' + (c.ativo !== false ? 'checked' : '') + '>' +
+                  '<span class="slider"></span>' +
+                '</label>' +
+              '</div>' +
+              '<div class="edicao-acoes">' +
+                '<button class="btn btn-primary btn-salvar" style="padding:9px 16px;">💾 Salvar</button>' +
+                '<button class="btn btn-amber-soft btn-resetar">📱 Resetar aparelho</button>' +
+                (c.email ? '<button class="btn btn-accent-soft btn-redefinir">✉️ Redefinir senha</button>' : '') +
+                '<button class="btn btn-bad-soft btn-apagar">🗑️ Apagar chave</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="edicao-msg"></div>' +
+          '</td>' +
+        '</tr>'
+      );
     }).join('');
 
-    // liga os eventos de cada cartão
-    lista.querySelectorAll('.item').forEach(itemEl => {
-      const chaveId = itemEl.getAttribute('data-id');
-      const msgEl = itemEl.querySelector('.item-msg');
-      const dados = todasChaves.find(c => c.id === chaveId);
+    ligarEventosLinhas();
+  }
+
+  function ligarEventosLinhas(){
+    tbody.querySelectorAll('.linha-dados').forEach(function(tr){
+      const chaveId = tr.getAttribute('data-id');
+      tr.querySelector('.btn-editar').addEventListener('click', function(){ alternarEdicao(chaveId); });
+      tr.addEventListener('click', function(ev){
+        if (ev.target.closest('.btn-editar')) return;
+        alternarEdicao(chaveId);
+      });
+    });
+
+    tbody.querySelectorAll('.linha-edicao').forEach(function(tr){
+      const chaveId = tr.getAttribute('data-id-edicao');
+      const dados = todasChaves.find(function(c){ return c.id === chaveId; });
+      const msgEl = tr.querySelector('.edicao-msg');
 
       function mostrarMsg(texto, ok){
         msgEl.textContent = texto;
-        msgEl.className = 'item-msg ' + (ok ? 'ok' : 'err');
+        msgEl.className = 'edicao-msg ' + (ok ? 'ok' : 'err');
       }
 
-      itemEl.querySelector('.btn-salvar').addEventListener('click', async () => {
-        const novaValidade = itemEl.querySelector('.input-validade').value;
-        const novoAtivo = itemEl.querySelector('.input-ativo').checked;
+      tr.querySelector('.btn-salvar').addEventListener('click', async function(){
+        const novaValidade = tr.querySelector('.input-validade').value;
+        const novoAtivo = tr.querySelector('.input-ativo').checked;
         if (!novaValidade){ mostrarMsg('Informe uma data de validade.', false); return; }
         try{
           await db.collection('chaves').doc(chaveId).update({ validade: novaValidade, ativo: novoAtivo });
           dados.validade = novaValidade; dados.ativo = novoAtivo;
           mostrarMsg('Salvo com sucesso!', true);
           renderCards();
+          linhaAbertaId = chaveId;
+          renderTabela();
         }catch(err){ mostrarMsg('Erro ao salvar: ' + err.message, false); }
       });
 
-      itemEl.querySelector('.btn-resetar').addEventListener('click', async () => {
+      tr.querySelector('.btn-resetar').addEventListener('click', async function(){
         if (!confirm('Desvincular o aparelho desta chave? A pessoa vai conseguir entrar de novo em outro aparelho.')) return;
         try{
           await db.collection('chaves').doc(chaveId).update({ aparelhoId: null });
@@ -374,13 +489,14 @@
           }
           dados.aparelhoId = null;
           mostrarMsg('Aparelho desvinculado!', true);
-          renderLista();
+          linhaAbertaId = chaveId;
+          renderTabela();
         }catch(err){ mostrarMsg('Erro: ' + err.message, false); }
       });
 
-      const btnRedefinir = itemEl.querySelector('.btn-redefinir');
+      const btnRedefinir = tr.querySelector('.btn-redefinir');
       if (btnRedefinir){
-        btnRedefinir.addEventListener('click', async () => {
+        btnRedefinir.addEventListener('click', async function(){
           try{
             await auth.sendPasswordResetEmail(dados.email);
             mostrarMsg('E-mail de redefinição enviado para ' + dados.email, true);
@@ -388,20 +504,40 @@
         });
       }
 
-      itemEl.querySelector('.btn-apagar').addEventListener('click', async () => {
+      tr.querySelector('.btn-apagar').addEventListener('click', async function(){
         if (!confirm('Apagar esta chave definitivamente? Isso não pode ser desfeito.')) return;
         try{
           await db.collection('chaves').doc(chaveId).delete();
-          todasChaves = todasChaves.filter(c => c.id !== chaveId);
+          todasChaves = todasChaves.filter(function(c){ return c.id !== chaveId; });
           renderCards();
-          renderLista();
+          renderTabela();
         }catch(err){ mostrarMsg('Erro ao apagar: ' + err.message, false); }
       });
     });
+
+    reabrirLinha();
   }
 
-  buscaInput.addEventListener('input', renderLista);
-  filtroSelect.addEventListener('change', renderLista);
+  function alternarEdicao(chaveId){
+    linhaAbertaId = (linhaAbertaId === chaveId) ? null : chaveId;
+    reabrirLinha();
+  }
+
+  function reabrirLinha(){
+    tbody.querySelectorAll('.linha-edicao').forEach(function(tr){
+      tr.classList.toggle('show', tr.getAttribute('data-id-edicao') === linhaAbertaId);
+    });
+  }
+
+  buscaInput.addEventListener('input', renderTabela);
+  filtroChips.addEventListener('click', function(ev){
+    const chip = ev.target.closest('.chip');
+    if (!chip) return;
+    filtroChips.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('active'); });
+    chip.classList.add('active');
+    filtroAtual = chip.getAttribute('data-filtro');
+    renderTabela();
+  });
 })();
 </script>
 </body>
